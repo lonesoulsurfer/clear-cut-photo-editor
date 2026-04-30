@@ -1,0 +1,3623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clear Cut Photo Editor</title>
+<meta name="description" content="Free browser-based photo editor with AI background removal, colour adjustments, shadows, crop and batch export. No install needed.">
+<meta property="og:title" content="Clear Cut Photo Editor">
+<meta property="og:description" content="Free browser-based photo editor with AI background removal, colour adjustments, shadows, crop and batch export. No install needed.">
+<meta property="og:type" content="website">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230f0f0f'/><rect x='6' y='6' width='13' height='13' rx='2' fill='%23c8f060'/><rect x='13' y='13' width='13' height='13' rx='2' fill='none' stroke='%23c8f060' stroke-width='1.5' opacity='0.5'/><line x1='19' y1='6' x2='26' y2='6' stroke='%23c8f060' stroke-width='1.5' stroke-linecap='round'/><line x1='26' y1='6' x2='26' y2='13' stroke='%23c8f060' stroke-width='1.5' stroke-linecap='round'/></svg>">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0f0f;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --surface3: #252525;
+    --border: #2a2a2a;
+    --border2: #363636;
+    --text: #e4e4e4;
+    --muted: #5a5a5a;
+    --muted2: #888;
+    --accent: #c8f060;
+    --accent2: rgba(200,240,96,0.12);
+    --warm: #f0a060;
+    --cool: #60b8f0;
+    --red: #f06060;
+    --green: #60d080;
+    --blue: #60a0f0;
+    --danger: #f05050;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-weight: 300;
+    height: 100vh;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 240px 1fr 240px;
+    grid-template-rows: 40px 1fr 32px;
+  }
+
+  /* ── Header ── */
+  header {
+    grid-column: 1/-1;
+    display: flex; align-items: center;
+    padding: 0 14px; gap: 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .logo { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--accent); letter-spacing: 0.06em; }
+  .sep  { color: var(--muted); font-size: 12px; }
+  .sub  { font-family: var(--mono); font-size: 11px; color: var(--muted2); }
+  .spacer { flex: 1; }
+  .header-pill {
+    font-family: var(--mono); font-size: 10px; padding: 3px 10px;
+    border-radius: 20px; border: 1px solid var(--border2);
+    color: var(--muted2); background: var(--surface2);
+  }
+
+  /* ── Panels ── */
+  .panel {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow-y: auto; overflow-x: hidden;
+    scrollbar-width: thin; scrollbar-color: var(--border2) transparent;
+  }
+  .panel-right {
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow-y: auto; overflow-x: hidden;
+    scrollbar-width: thin; scrollbar-color: var(--border2) transparent;
+  }
+  .panel-tag {
+    padding: 6px 14px 5px;
+    font-family: var(--mono); font-size: 9px; font-weight: 500;
+    letter-spacing: .13em; text-transform: uppercase; color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  }
+  .panel-tag-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+  .sec { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  .sec:last-child { border-bottom: none; flex: 1; }
+
+  .sec-title {
+    font-family: var(--mono); font-size: 9px; font-weight: 500;
+    letter-spacing: 0.13em; color: var(--muted); text-transform: uppercase;
+    margin-bottom: 10px; display: flex; align-items: center; gap: 7px;
+  }
+  .sec-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* Drop zone */
+  .drop-zone {
+    border: 1px dashed var(--border2); border-radius: 6px;
+    padding: 14px 10px; text-align: center; cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .drop-zone:hover, .drop-zone.over { border-color: var(--accent); background: var(--accent2); }
+  .drop-zone input { display: none; }
+  .drop-icon { font-size: 18px; margin-bottom: 5px; opacity: 0.4; }
+  .drop-zone p { font-size: 10px; color: var(--muted2); line-height: 1.6; }
+  .drop-zone span { color: var(--accent); }
+
+  /* ── Filmstrip (horizontal, bottom of preview) ── */
+  #thumb-sidebar {
+    display: none; /* hidden — filmstrip replaces it */
+  }
+  #filmstrip {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    padding: 5px 8px;
+    gap: 5px;
+    overflow-x: auto; overflow-y: hidden;
+    scrollbar-width: thin; scrollbar-color: var(--border2) transparent;
+    flex-shrink: 0;
+    height: 60px;
+  }
+  #filmstrip::-webkit-scrollbar { height: 4px; }
+  #filmstrip::-webkit-scrollbar-track { background: transparent; }
+  #filmstrip::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+  .thumb-strip { display: contents; }
+  .thumb {
+    width: 46px; height: 46px; border-radius: 4px; overflow: visible;
+    cursor: pointer; border: 2px solid transparent; flex-shrink: 0;
+    position: relative; transition: border-color .1s;
+  }
+  .thumb .thumb-img-wrap {
+    width: 100%; height: 100%; border-radius: 3px; overflow: hidden; display: block;
+  }
+  .thumb.active { border-color: var(--accent); }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb-delete {
+    position: absolute; top: -6px; right: -6px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #e03030; color: #fff;
+    font-size: 9px; font-weight: 700; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity .2s .4s, transform .1s;
+    z-index: 20; border: 2px solid var(--bg); cursor: pointer; padding: 0;
+    font-family: var(--mono); pointer-events: none;
+  }
+  .thumb:hover .thumb-delete {
+    opacity: 1; pointer-events: auto; transition: opacity .2s .5s, transform .1s;
+  }
+  .thumb-delete:hover { transform: scale(1.15); background: #c00; transition: opacity .0s, transform .1s; }
+  .thumb-label {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    font-family: var(--mono); font-size: 7px; text-align: center;
+    background: rgba(0,0,0,.7); color: #fff; padding: 1px 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* Sliders */
+  .slider-group { margin-bottom: 10px; }
+  .slider-group:last-child { margin-bottom: 0; }
+  .slider-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .slider-label { font-family: var(--mono); font-size: 10px; color: var(--muted2); display: flex; align-items: center; gap: 5px; }
+  .slider-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .val-badge {
+    font-family: var(--mono); font-size: 11px; font-weight: 500;
+    min-width: 30px; text-align: right; color: var(--accent);
+    transition: color .1s;
+  }
+  .val-badge.zero { color: var(--muted); }
+
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 2px; border-radius: 1px;
+    background: var(--border2); outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 12px; height: 12px;
+    border-radius: 50%; cursor: pointer; border: 2px solid var(--bg);
+    transition: transform .1s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+
+  #brightness-range::-webkit-slider-thumb   { background: #e8e8e8; }
+  #contrast-range::-webkit-slider-thumb    { background: #b0b0b0; }
+  #sharpness-range::-webkit-slider-thumb   { background: var(--accent); }
+  #colour-range::-webkit-slider-thumb      { background: #c080f0; }
+  #warmth-range::-webkit-slider-thumb      { background: var(--warm); }
+  #highlights-range::-webkit-slider-thumb  { background: #f0e060; }
+  #shadows-range::-webkit-slider-thumb     { background: #6080c0; }
+  #straighten-range::-webkit-slider-thumb  { background: var(--cool); }
+
+  .divider { height: 1px; background: var(--border); margin: 10px 0; }
+
+  /* Inputs */
+  .field-label { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.05em; margin-bottom: 5px; display: block; }
+  input[type=text], input[type=password] {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: 4px; color: var(--text); font-family: var(--mono);
+    font-size: 11px; padding: 7px 9px; outline: none; transition: border-color .15s;
+  }
+  input[type=text]:focus, input[type=password]:focus { border-color: var(--accent); }
+  input::placeholder { color: var(--muted); }
+
+
+  /* Buttons */
+  .btn {
+    display: block; width: 100%; padding: 8px 10px;
+    border-radius: 4px; border: none; cursor: pointer;
+    font-family: var(--mono); font-size: 10.5px; font-weight: 500;
+    letter-spacing: 0.03em; transition: all .15s; text-align: center;
+  }
+  .btn + .btn { margin-top: 6px; }
+  .btn-primary { background: var(--accent); color: #0a0a0a; }
+  .btn-primary:hover { background: #d8ff70; }
+  .btn-secondary { background: var(--surface3); color: var(--text); border: 1px solid var(--border2); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-ghost { background: transparent; color: var(--muted2); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--border2); color: var(--text); }
+  .btn-sm { padding: 5px 10px; font-size: 10px; display: inline-block; width: auto; }
+
+  /* Status bar */
+  #statusbar {
+    grid-column: 1/-1; display: flex; align-items: center; gap: 8px;
+    padding: 0 14px; border-top: 1px solid var(--border);
+    background: var(--surface); font-family: var(--mono); font-size: 10px; color: var(--muted2);
+  }
+  #statusbar.ok  { color: var(--accent); }
+  #statusbar.err { color: var(--danger); }
+  .status-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+  /* Preview */
+  .preview-pane {
+    background: #080808;
+    display: flex; flex-direction: column;
+    align-items: stretch; justify-content: stretch;
+    overflow: hidden; position: relative;
+  }
+  .preview-canvas-area {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; position: relative;
+    min-height: 0;
+  }
+  .preview-canvas-area:hover .preview-toolbar { opacity: 1; }
+  .preview-canvas-area:hover #prev-zone,
+  .preview-canvas-area:hover #next-zone { opacity: 1 !important; }
+  #prev-zone:hover > div, #next-zone:hover > div { background: rgba(0,0,0,.7); }
+  #prev-zone, #next-zone { opacity: 0; transition: opacity .15s; }
+  #preview-canvas { display: block; cursor: crosshair; user-select: none; }
+  #preview-canvas.dragging { cursor: crosshair; }
+
+  /* Compose wrap */
+  #compose-wrap {
+    position: relative;
+    box-shadow: 0 0 0 1px var(--border2), 0 4px 24px rgba(0,0,0,.5);
+    flex-shrink: 0;
+  }
+
+  /* Rubber-band selection box */
+  #sel-box {
+    position: absolute;
+    border: 2px solid var(--accent);
+    background: rgba(200,240,96,0.12);
+    display: none;
+    pointer-events: none;
+    box-sizing: border-box;
+  }
+  #sel-box::after {
+    content: attr(data-label);
+    position: absolute;
+    bottom: -22px; left: 50%; transform: translateX(-50%);
+    font-family: var(--mono); font-size: 10px;
+    color: var(--accent); background: rgba(0,0,0,.75);
+    padding: 2px 8px; border-radius: 3px; white-space: nowrap;
+  }
+
+  /* Preset buttons */
+  .preset-btn {
+    background: var(--surface3); border: 1px solid var(--border2);
+    border-radius: 4px; color: var(--muted2); font-family: var(--mono);
+    font-size: 10px; padding: 7px 5px; cursor: pointer; transition: all .15s;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  .preset-btn span { font-size: 8.5px; color: var(--muted); }
+  .preset-btn:hover { border-color: var(--accent); color: var(--text); }
+  .preset-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent2); }
+
+  .empty-state { text-align: center; color: var(--muted); }
+  .empty-state .ei { font-size: 38px; opacity: .2; margin-bottom: 10px; }
+  .empty-state p { font-family: var(--mono); font-size: 11px; color: var(--muted); line-height: 1.7; }
+
+  .preview-toolbar {
+    position: absolute; bottom: 14px; right: 14px;
+    display: flex; gap: 6px; opacity: 0; transition: opacity .2s; align-items: center;
+  }
+
+  .zoom-badge {
+    font-family: var(--mono); font-size: 10px; color: var(--muted2);
+    background: rgba(0,0,0,.6); padding: 3px 8px; border-radius: 3px;
+    pointer-events: none;
+  }
+
+  .info-overlay {
+    position: absolute; top: 10px; left: 10px;
+    font-family: var(--mono); font-size: 10px; color: rgba(255,255,255,.4);
+    display: none;
+  }
+
+  .size-hint { font-family: var(--mono); font-size: 9.5px; color: var(--muted); line-height: 1.6; }
+
+  /* Shadow compass */
+  .compass-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; margin-bottom: 8px;
+  }
+  .compass-btn {
+    background: var(--surface3); border: 1px solid var(--border2);
+    border-radius: 4px; color: var(--muted2); font-size: 13px;
+    padding: 6px 0; cursor: pointer; transition: all .15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .compass-btn:hover { border-color: var(--accent); color: var(--text); }
+  .compass-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent2); }
+  .compass-btn.none-btn { font-size: 9px; font-family: var(--mono); color: var(--muted); }
+  .shadow-slider-row { margin-bottom: 7px; }
+  .shadow-slider-row:last-child { margin-bottom: 0; }
+  .shadow-type-row { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 8px; }
+  .shadow-type-btn {
+    background: var(--surface3); border: 1px solid var(--border2);
+    border-radius: 4px; color: var(--muted2); font-family: var(--mono);
+    font-size: 9.5px; padding: 6px 4px; cursor: pointer;
+    transition: all .15s; text-align: center;
+  }
+  .shadow-type-btn:hover { border-color: var(--accent); color: var(--text); }
+  .shadow-type-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent2); }
+  .bg-swatch {
+    width: 32px; height: 32px; border-radius: 3px;
+    border: 2px solid transparent; cursor: pointer;
+    flex-shrink: 0; position: relative;
+    transition: border-color .1s, transform .1s;
+    background: var(--surface3);
+  }
+  .bg-swatch:hover { transform: scale(1.08); border-color: var(--muted2); }
+  .bg-swatch.active { border-color: var(--accent) !important; }
+  .bg-swatch-custom { width: 32px; height: 32px; border-radius: 3px; border: 2px dashed var(--border2); display:flex; align-items:center; justify-content:center; color:var(--muted2); font-size:11px; flex-shrink:0; transition:border-color .1s; position:relative; }
+  .bg-swatch-custom:hover { border-color: var(--accent); color: var(--accent); }
+  .toggle-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 4px;
+    background: var(--surface2); border: 1px solid var(--border2);
+    margin-bottom: 6px; cursor: pointer; transition: border-color .15s;
+  }
+  .toggle-row:hover { border-color: var(--accent); }
+  .toggle-row input[type=checkbox] { display: none; }
+  .toggle-track {
+    width: 28px; height: 15px; border-radius: 8px;
+    background: var(--border2); position: relative; flex-shrink: 0;
+    transition: background .15s;
+  }
+  .toggle-track::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 11px; height: 11px; border-radius: 50%;
+    background: var(--muted2); transition: left .15s, background .15s;
+  }
+  .toggle-row.on .toggle-track { background: var(--accent2); border: 1px solid var(--accent); }
+  .toggle-row.on .toggle-track::after { left: 14px; background: var(--accent); }
+  .toggle-label { font-family: var(--mono); font-size: 10px; color: var(--muted2); flex: 1; }
+  .toggle-row.on .toggle-label { color: var(--accent); }
+
+  /* BG progress overlay */
+  #bg-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.82); z-index: 200;
+    align-items: center; justify-content: center; flex-direction: column; gap: 14px;
+  }
+  #bg-overlay.show { display: flex; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  #bg-spinner-svg { animation: spin 0.8s linear infinite; transform-origin: center; }
+  .bg-overlay-text { font-family: var(--mono); font-size: 11px; color: var(--muted2); text-align: center; line-height: 1.6; }
+  .bg-overlay-text strong { color: var(--accent); display: block; margin-bottom: 4px; }
+
+  /* Undo / Redo adjustment buttons */
+  .adj-hist-btn {
+    display: flex; align-items: center; gap: 5px;
+    background: var(--surface3); border: 1px solid var(--border2);
+    border-radius: 4px; color: var(--muted2);
+    font-family: var(--mono); font-size: 10px;
+    padding: 5px 8px; cursor: pointer;
+    transition: all .15s; flex: 1; justify-content: center;
+  }
+  .adj-hist-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .adj-hist-btn:disabled { opacity: 0.3; cursor: default; }
+  .adj-hist-btn svg { flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div id="bg-overlay">
+  <svg id="bg-spinner-svg" width="42" height="42" viewBox="0 0 42 42" style="transform-origin:center;">
+    <circle cx="21" cy="21" r="16" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="3"/>
+    <circle cx="21" cy="21" r="16" fill="none" stroke="#c8f060" stroke-width="3"
+      stroke-linecap="round" stroke-dasharray="25 76" stroke-dashoffset="0"/>
+  </svg>
+  <div class="bg-overlay-text">
+    <strong id="bg-overlay-title">Removing background…</strong>
+    <span id="bg-overlay-count" style="display:none;font-family:var(--mono);font-size:13px;color:var(--accent);margin-bottom:6px;display:none;"></span>
+    <span id="bg-overlay-sub">First run downloads ~40 MB AI model — subsequent runs are instant.</span>
+    <div id="bg-overlay-bar-wrap" style="display:none;margin-top:12px;width:260px;">
+      <div style="height:3px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden;">
+        <div id="bg-overlay-bar" style="height:100%;width:0%;background:var(--accent);border-radius:2px;transition:width .3s ease;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<header>
+  <span class="logo">clear_cut</span><span class="sep">/</span><span class="sub">photo editor</span>
+  <div class="spacer"></div>
+  <span class="header-pill" id="session-pill" onclick="showSessionModal()" title="Change session" style="cursor:pointer;">no session</span>
+  <span class="header-pill" id="count-pill">no images</span>
+</header>
+
+<!-- ═══════════════ LEFT PANEL — Adjustments ═══════════════ -->
+<div class="panel">
+
+  <div class="panel-tag">
+    <span class="panel-tag-dot" style="background:var(--accent);"></span>adjustments
+  </div>
+
+  <!-- Upload + Undo/Redo -->
+  <div class="sec">
+    <div style="display:flex;gap:6px;margin-bottom:10px;">
+      <button class="adj-hist-btn" id="undo-adj-btn" onclick="undoAdj()" title="Undo (Ctrl+Z)" disabled>
+        <svg width="11" height="11" viewBox="0 0 13 13" fill="none"><path d="M2 5.5H8.5C10.157 5.5 11.5 6.843 11.5 8.5C11.5 10.157 10.157 11.5 8.5 11.5H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M4.5 3L2 5.5L4.5 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Undo
+      </button>
+      <button class="adj-hist-btn" id="redo-adj-btn" onclick="redoAdj()" title="Redo (Ctrl+Y)" disabled>
+        Redo
+        <svg width="11" height="11" viewBox="0 0 13 13" fill="none"><path d="M11 5.5H4.5C2.843 5.5 1.5 6.843 1.5 8.5C1.5 10.157 2.843 11.5 4.5 11.5H8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8.5 3L11 5.5L8.5 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" id="file-input" accept="image/*" multiple>
+      <div class="drop-icon">⊕</div>
+      <p><span>Click</span> or drag photos<br>JPG · PNG · WEBP</p>
+    </div>
+  </div>
+
+  <!-- Sliders -->
+  <div class="sec">
+    <div class="slider-group">
+      <div class="slider-header">
+        <span class="slider-label"><span class="slider-dot" style="background:#e8e8e8;"></span>Brightness</span>
+        <span class="val-badge zero" id="brightness-val">0</span>
+      </div>
+      <input type="range" id="brightness-range" min="-100" max="100" step="1" value="0">
+    </div>
+    <div class="slider-group">
+      <div class="slider-header">
+        <span class="slider-label"><span class="slider-dot" style="background:#b0b0b0;"></span>Contrast</span>
+        <span class="val-badge zero" id="contrast-val">0</span>
+      </div>
+      <input type="range" id="contrast-range" min="-100" max="100" step="1" value="0">
+    </div>
+    <div class="slider-group">
+      <div class="slider-header">
+        <span class="slider-label"><span class="slider-dot" style="background:var(--accent);"></span>Sharpness</span>
+        <span class="val-badge zero" id="sharpness-val">0</span>
+      </div>
+      <input type="range" id="sharpness-range" min="-100" max="100" step="1" value="0">
+    </div>
+    <div class="slider-group">
+      <div class="slider-header">
+        <span class="slider-label"><span class="slider-dot" style="background:#c080f0;"></span>Colour</span>
+        <span class="val-badge zero" id="colour-val">0</span>
+      </div>
+      <input type="range" id="colour-range" min="-100" max="100" step="1" value="0">
+    </div>
+    <div class="slider-group">
+      <div class="slider-header">
+        <span class="slider-label"><span class="slider-dot" style="background:var(--warm);"></span>Warmth</span>
+        <span class="val-badge zero" id="warmth-val">0</span>
+      </div>
+      <input type="range" id="warmth-range" min="-100" max="100" step="1" value="0">
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="slider-group">
+      <div class="slider-header">
+        <span class="slider-label"><span class="slider-dot" style="background:#f0e060;"></span>Highlights</span>
+        <span class="val-badge zero" id="highlights-val">0</span>
+      </div>
+      <input type="range" id="highlights-range" min="-100" max="100" step="1" value="0">
+    </div>
+    <div class="slider-group">
+      <div class="slider-header">
+        <span class="slider-label"><span class="slider-dot" style="background:#6080c0;"></span>Shadows</span>
+        <span class="val-badge zero" id="shadows-val">0</span>
+      </div>
+      <input type="range" id="shadows-range" min="-100" max="100" step="1" value="0">
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Rotation 2×2 grid -->
+    <div class="slider-header" style="margin-bottom:6px;">
+      <span class="slider-label"><span class="slider-dot" style="background:var(--cool);"></span>Rotation</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+      <button class="preset-btn" style="padding:6px 4px;" onclick="rotateImage(-90)" title="Rotate 90° counter-clockwise">↺ CCW</button>
+      <button class="preset-btn" style="padding:6px 4px;" onclick="rotateImage(90)"  title="Rotate 90° clockwise">CW ↻</button>
+      <button class="preset-btn" style="padding:6px 4px;" onclick="rotateImage(180)" title="Rotate 180°">180°</button>
+      <div style="display:flex;align-items:center;justify-content:center;background:var(--surface2);border:1px solid var(--border2);border-radius:4px;padding:6px 4px;">
+        <span id="rotation-label" style="font-family:var(--mono);font-size:10px;color:var(--cool);">0°</span>
+      </div>
+    </div>
+
+    <!-- Straighten slider -->
+    <div style="margin-top:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--muted2);">Straighten</span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--cool);" id="straighten-val">0°</span>
+      </div>
+      <input type="range" id="straighten-range" min="-10" max="10" step="0.5" value="0"
+        oninput="onStraighten(this.value)"
+        ondblclick="resetStraighten()"
+        style="-webkit-appearance:none;appearance:none;width:100%;height:2px;border-radius:1px;background:var(--border2);outline:none;cursor:pointer;">
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- PRESETS -->
+    <div class="sec-title" style="margin-bottom:8px;">Presets</div>
+    <div id="preset-slots" style="display:flex;flex-direction:column;gap:5px;"></div>
+    <button class="btn btn-ghost btn-sm" onclick="saveNewPreset()" style="margin-top:8px;width:100%;font-size:10px;">+ Save current as preset</button>
+    <div id="preset-status" style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:5px;min-height:12px;text-align:center;"></div>
+
+    <div class="divider"></div>
+
+    <!-- Apply adjustments to all + Reset -->
+    <div style="display:flex;gap:6px;align-items:center;">
+      <button class="btn btn-secondary" id="apply-all-btn" onclick="applySettingsToAll()" style="flex:1;font-size:10px;padding:7px 8px;" title="Copy current image's adjustments to all other images">⇉ Apply adjustments to all</button>
+      <button class="btn btn-ghost btn-sm" onclick="resetAll()" title="Reset all sliders to zero" style="flex-shrink:0;white-space:nowrap;">↺ Reset</button>
+    </div>
+    <div id="apply-all-status" style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:5px;min-height:12px;text-align:center;"></div>
+  </div>
+
+</div>
+
+<!-- ═══════════════ THUMB SIDEBAR (legacy, hidden) ═══════════════ -->
+<div id="thumb-sidebar" style="display:none;">
+  <div class="thumb-strip" id="thumb-strip"></div>
+</div>
+
+<!-- ═══════════════ PREVIEW ═══════════════ -->
+<div class="preview-pane" id="preview-pane">
+  <div class="preview-canvas-area" id="preview-canvas-area">
+  <div class="empty-state" id="empty-state">
+    <div class="ei">◫</div>
+    <p>Open a photo to preview<br>adjustments in real time</p>
+  </div>
+  <!-- Compositing stage: canvas frame + image inside -->
+  <div id="compose-wrap" style="display:none;position:relative;">
+    <canvas id="preview-canvas"></canvas>
+    <div id="sel-box"></div>
+    <!-- BG preview badge -->
+    <div id="bg-preview-badge" style="display:none;position:absolute;top:8px;left:8px;
+      font-family:'DM Mono',monospace;font-size:9px;font-weight:500;letter-spacing:.1em;
+      background:rgba(200,240,96,0.9);color:#0a0a0a;padding:3px 8px;border-radius:3px;
+      pointer-events:none;text-transform:uppercase;">PREVIEW</div>
+  </div>
+  <div class="info-overlay" id="info-overlay"></div>
+  <div class="preview-toolbar">
+    <span class="zoom-badge" id="dims-badge">—</span>
+    <button class="btn btn-secondary btn-sm" onclick="saveCurrent()" style="opacity:.9;" id="preview-save-btn">↓ Save this photo</button>
+  </div>
+
+  <!-- Prev / Next nav zones -->
+  <div id="prev-zone" onclick="navigatePreview(-1)" title="Previous image"
+    style="display:none;position:absolute;left:0;top:0;bottom:60px;width:48px;
+           cursor:pointer;z-index:10;align-items:center;justify-content:center;
+           opacity:0;transition:opacity .15s;">
+    <div style="background:rgba(0,0,0,.45);border-radius:0 4px 4px 0;padding:10px 6px;
+                font-size:18px;color:#fff;line-height:1;user-select:none;">‹</div>
+  </div>
+  <div id="next-zone" onclick="navigatePreview(1)" title="Next image"
+    style="display:none;position:absolute;right:0;top:0;bottom:60px;width:48px;
+           cursor:pointer;z-index:10;align-items:center;justify-content:center;
+           opacity:0;transition:opacity .15s;">
+    <div style="background:rgba(0,0,0,.45);border-radius:4px 0 0 4px;padding:10px 6px;
+                font-size:18px;color:#fff;line-height:1;user-select:none;">›</div>
+  </div>
+
+  </div><!-- end .preview-canvas-area -->
+
+  <!-- ── Horizontal filmstrip ── -->
+  <div id="filmstrip">
+    <div class="thumb-strip" id="thumb-strip-film"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ RIGHT PANEL — Export & Output ═══════════════ -->
+<div class="panel-right">
+
+  <div class="panel-tag">
+    <span class="panel-tag-dot" style="background:var(--cool);"></span>export &amp; output
+  </div>
+
+  <!-- Canvas shape presets -->
+  <div class="sec">
+    <div class="sec-title">Canvas</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:5px;">
+      <button class="preset-btn active" data-preset="original" onclick="setPreset(this)">Original</button>
+      <button class="preset-btn" data-preset="landscape" onclick="setPreset(this)">Landscape<span>3:2</span></button>
+      <button class="preset-btn" data-preset="portrait"  onclick="setPreset(this)">Portrait<span>2:3</span></button>
+      <button class="preset-btn" data-preset="square"    onclick="setPreset(this)">Square<span>1:1</span></button>
+      <button class="preset-btn" onclick="resetCompose()" style="font-size:10px;" title="Reset image zoom and position to fit canvas">Fit to canvas</button>
+    </div>
+    <div style="display:flex;gap:5px;margin-bottom:8px;">
+      <button class="btn btn-ghost btn-sm" id="freehand-btn" onclick="toggleFreehand(this)" title="Toggle freehand selection (unconstrained)" style="flex:1;">✥ Freehand selection</button>
+    </div>
+    <div id="custom-size-row" style="display:none;gap:6px;align-items:center;margin-bottom:8px;">
+      <input type="number" id="canvas-w" placeholder="W" min="1" style="flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 7px;outline:none;width:0;">
+      <span style="font-family:var(--mono);font-size:10px;color:var(--muted);">×</span>
+      <input type="number" id="canvas-h" placeholder="H" min="1" style="flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 7px;outline:none;width:0;">
+      <button class="preset-btn" style="padding:5px 8px;width:auto;" onclick="applyCustomSize()">OK</button>
+    </div>
+    <p class="size-hint">Scroll to zoom · Left-drag to zoom selection · Right-drag to pan · ← → images</p>
+  </div>
+
+  <!-- Export size 2×2 -->
+  <div class="sec">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <span style="font-family:var(--mono);font-size:10px;color:var(--muted2);">Export size</span>
+      <span style="font-family:var(--mono);font-size:11px;font-weight:500;color:var(--accent);" id="export-size-val">100%</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+      <button class="preset-btn active" data-scale="1.0"  onclick="setExportScale(this)">100%</button>
+      <button class="preset-btn"        data-scale="0.75" onclick="setExportScale(this)">75%</button>
+      <button class="preset-btn"        data-scale="0.5"  onclick="setExportScale(this)">50%</button>
+      <button class="preset-btn"        data-scale="0.25" onclick="setExportScale(this)">25%</button>
+    </div>
+    <div id="export-dims-hint" style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:5px;"></div>
+  </div>
+
+  <!-- BG colour picker -->
+  <div class="sec">
+    <div id="bg-colour-panel" style="display:none;">
+      <div style="font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">Background colour</div>
+      <div style="display:grid;grid-template-columns:repeat(5,32px);gap:4px;margin-bottom:7px;" id="bg-swatch-row">
+        <!-- Row 1: neutrals -->
+        <button class="bg-swatch" data-colour="none" onclick="selectBgColour(this)" title="Transparent (PNG)">
+          <svg width="100%" height="100%" viewBox="0 0 20 20"><rect width="10" height="10" fill="#ccc"/><rect x="10" y="10" width="10" height="10" fill="#ccc"/><rect x="10" y="0" width="10" height="10" fill="#fff"/><rect x="0" y="10" width="10" height="10" fill="#fff"/></svg>
+        </button>
+        <button class="bg-swatch active" data-colour="#ffffff" onclick="selectBgColour(this)" title="White" style="background:#ffffff;"></button>
+        <button class="bg-swatch" data-colour="#e8e8e8" onclick="selectBgColour(this)" title="Light grey" style="background:#e8e8e8;"></button>
+        <button class="bg-swatch" data-colour="#888888" onclick="selectBgColour(this)" title="Mid grey" style="background:#888888;"></button>
+        <button class="bg-swatch" data-colour="#000000" onclick="selectBgColour(this)" title="Black" style="background:#000000;"></button>
+        <!-- Row 2: colours -->
+        <button class="bg-swatch" data-colour="#c0392b" onclick="selectBgColour(this)" title="Red" style="background:#c0392b;"></button>
+        <button class="bg-swatch" data-colour="#e8a020" onclick="selectBgColour(this)" title="Amber" style="background:#e8a020;"></button>
+        <button class="bg-swatch" data-colour="#f0e060" onclick="selectBgColour(this)" title="Yellow" style="background:#f0e060;"></button>
+        <button class="bg-swatch" data-colour="#c8f060" onclick="selectBgColour(this)" title="Lime" style="background:#c8f060;"></button>
+        <button class="bg-swatch" data-colour="#60d0a0" onclick="selectBgColour(this)" title="Teal" style="background:#60d0a0;"></button>
+        <!-- Row 3: colours + custom -->
+        <button class="bg-swatch" data-colour="#60b8f0" onclick="selectBgColour(this)" title="Sky" style="background:#60b8f0;"></button>
+        <button class="bg-swatch" data-colour="#1a3a5c" onclick="selectBgColour(this)" title="Navy" style="background:#1a3a5c;"></button>
+        <button class="bg-swatch" data-colour="#8060f0" onclick="selectBgColour(this)" title="Purple" style="background:#8060f0;"></button>
+        <button class="bg-swatch" data-colour="#2d6a4f" onclick="selectBgColour(this)" title="Forest" style="background:#2d6a4f;"></button>
+        <label class="bg-swatch bg-swatch-custom" title="Custom colour" style="cursor:pointer;overflow:hidden;padding:0;">
+          <input type="color" id="bg-custom-colour" value="#c8f060" oninput="onCustomColour(this)" style="opacity:0;width:100%;height:100%;cursor:pointer;border:none;padding:0;">
+          <span id="bg-custom-preview" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;pointer-events:none;">＋</span>
+        </label>
+      </div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--muted);" id="bg-colour-label">Transparent PNG</div>
+
+      <!-- Preview BG button -->
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:5px;">
+        <button id="preview-bg-btn" onclick="toggleBgPreview()"
+          style="display:none;width:100%;padding:6px 8px;background:var(--surface3);border:1px solid var(--border2);
+                 border-radius:4px;color:var(--muted2);font-family:var(--mono);font-size:9.5px;
+                 cursor:pointer;transition:all .15s;text-align:center;">
+          ◎ Preview background
+        </button>
+        <button id="preview-bg-all-btn" onclick="previewBgAll()"
+          style="display:none;width:100%;padding:6px 8px;background:var(--surface3);border:1px solid var(--border2);
+                 border-radius:4px;color:var(--muted2);font-family:var(--mono);font-size:9.5px;
+                 cursor:pointer;transition:all .15s;text-align:center;">
+          ◎ Preview BG on all images
+        </button>
+        <!-- Preview-all progress bar -->
+        <div id="preview-all-progress-wrap" style="display:none;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="font-family:var(--mono);font-size:9px;color:var(--muted);" id="preview-all-progress-label">0 / 0</span>
+            <span style="font-family:var(--mono);font-size:9px;color:var(--muted2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;" id="preview-all-progress-file"></span>
+          </div>
+          <div style="height:3px;background:var(--border2);border-radius:2px;overflow:hidden;">
+            <div id="preview-all-progress-bar" style="height:100%;width:0%;background:var(--accent);border-radius:2px;transition:width .2s ease;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Crop to subject — shown after BG preview so flow is logical -->
+      <div id="crop-section" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border2);">
+        <label class="toggle-row" id="crop-toggle-row" onclick="toggleCropToContent()" title="Auto-crop to subject after BG removal" style="margin-bottom:0;">
+          <div class="toggle-track" id="crop-toggle-track"></div>
+          <span class="toggle-label">Crop to subject</span>
+        </label>
+        <div id="crop-padding-row" style="display:none;margin-top:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="font-family:var(--mono);font-size:9px;color:var(--muted);">Padding</span>
+            <span style="font-family:var(--mono);font-size:9px;color:var(--accent);" id="crop-padding-val">20 px</span>
+          </div>
+          <input type="range" id="crop-padding-range" min="0" max="80" step="4" value="20"
+            oninput="document.getElementById('crop-padding-val').textContent=this.value+' px'">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shadow -->
+  <div class="sec" id="shadow-panel" style="display:none;">
+    <div class="sec-title">Shadow</div>
+    <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:4px;padding:8px;">
+
+    <!-- Angle dial + OFF toggle -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <div style="position:relative;flex-shrink:0;">
+        <canvas id="shadow-dial" width="80" height="80"
+          style="cursor:crosshair;border-radius:50%;display:block;"
+          title="Drag to set shadow angle"></canvas>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+        <button id="shadow-off-btn" onclick="toggleShadowOff()"
+          style="width:100%;padding:5px 6px;background:var(--surface3);border:1px solid var(--border2);
+                 border-radius:4px;color:var(--muted2);font-family:var(--mono);font-size:9.5px;
+                 cursor:pointer;transition:all .15s;text-align:center;">
+          ○ Disabled
+        </button>
+        <div style="font-family:var(--mono);font-size:8px;color:var(--muted);text-align:center;line-height:1.4;">
+          drag ring<br>to set angle
+        </div>
+      </div>
+    </div>
+
+    <!-- Strength -->
+    <div class="shadow-slider-row">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+        <span style="font-family:var(--mono);font-size:9px;color:var(--muted2);">Strength</span>
+        <span style="font-family:var(--mono);font-size:9px;color:var(--accent);" id="shadow-strength-val">74%</span>
+      </div>
+      <input type="range" id="shadow-strength-range" min="0" max="100" step="1" value="74"
+        oninput="onShadowSlider('strength', this.value)">
+    </div>
+
+    <!-- Softness -->
+    <div class="shadow-slider-row">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+        <span style="font-family:var(--mono);font-size:9px;color:var(--muted2);">Softness</span>
+        <span style="font-family:var(--mono);font-size:9px;color:var(--accent);" id="shadow-softness-val">21%</span>
+      </div>
+      <input type="range" id="shadow-softness-range" min="0" max="100" step="1" value="21"
+        oninput="onShadowSlider('softness', this.value)">
+    </div>
+
+    <!-- Spread -->
+    <div class="shadow-slider-row">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+        <span style="font-family:var(--mono);font-size:9px;color:var(--muted2);">Spread</span>
+        <span style="font-family:var(--mono);font-size:9px;color:var(--accent);" id="shadow-spread-val">70%</span>
+      </div>
+      <input type="range" id="shadow-spread-range" min="5" max="200" step="1" value="70"
+        oninput="onShadowSlider('spread', this.value)">
+    </div>
+
+    <!-- Width -->
+    <div class="shadow-slider-row">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+        <span style="font-family:var(--mono);font-size:9px;color:var(--muted2);">Width</span>
+        <span style="font-family:var(--mono);font-size:9px;color:var(--accent);" id="shadow-width-val">107%</span>
+      </div>
+      <input type="range" id="shadow-width-range" min="5" max="200" step="1" value="107"
+        oninput="onShadowSlider('width', this.value)">
+    </div>
+
+    <!-- Distance -->
+    <div class="shadow-slider-row">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+        <span style="font-family:var(--mono);font-size:9px;color:var(--muted2);">Distance</span>
+        <span style="font-family:var(--mono);font-size:9px;color:var(--accent);" id="shadow-distance-val">80%</span>
+      </div>
+      <input type="range" id="shadow-distance-range" min="0" max="100" step="1" value="80"
+        oninput="onShadowSlider('distance', this.value)">
+    </div>
+
+    </div>
+
+    <!-- Apply BG + shadow to all -->
+    <button class="btn btn-secondary" onclick="applyBgShadowToAll()" style="font-size:10px;padding:7px 8px;margin-top:10px;" title="Copy current BG removal, colour, crop and shadow settings to all images">⇉ Apply background & shadow to all</button>
+    <div id="apply-bg-all-status" style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:5px;min-height:12px;text-align:center;"></div>
+  </div>
+  <div class="sec">
+    <button class="btn btn-primary" id="save-btn" onclick="saveCurrent()">↓ Save this photo</button>
+    <button class="btn btn-secondary" id="save-all-btn" onclick="saveAll()" style="display:none;">↓ Save all photos</button>
+
+    <!-- Save-all progress bar -->
+    <div id="save-progress-wrap" style="display:none;margin-top:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <span style="font-family:var(--mono);font-size:9px;color:var(--muted);" id="save-progress-label">0 / 0</span>
+        <span style="font-family:var(--mono);font-size:9px;color:var(--muted2);" id="save-progress-file"></span>
+      </div>
+      <div style="height:3px;background:var(--border2);border-radius:2px;overflow:hidden;">
+        <div id="save-progress-bar" style="height:100%;width:0%;background:var(--accent);border-radius:2px;transition:width .2s ease;"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════ STATUS BAR ═══════════════ -->
+<div id="statusbar"><span class="status-dot"></span><span id="status-text">Ready</span><span id="folder-link" style="display:none;"></span></div>
+
+<canvas id="work-canvas" style="display:none;"></canvas>
+
+<script>
+// ── State ──
+const originals = [], fileList = [];
+let selectedIdx = 0;
+
+// ── Per-image settings (sliders + rotation) ──
+const imageSettings = []; // { brightness, contrast, sharpness, colour, rotation }
+const DEFAULT_SETTINGS = () => ({ brightness: 0, contrast: 0, sharpness: 0, colour: 0, warmth: 0, highlights: 0, shadows: 0, rotation: 0 });
+
+// ── Per-image undo/redo history ──
+const adjUndoStack = []; // array of stacks, one per image index
+const adjRedoStack = [];
+
+function pushAdjUndo(idx) {
+  if (!adjUndoStack[idx]) adjUndoStack[idx] = [];
+  if (!adjRedoStack[idx]) adjRedoStack[idx] = [];
+  // Deep copy current settings + zoom/pan state onto undo stack
+  adjUndoStack[idx].push({
+    ...imageSettings[idx],
+    _imgX: imgX, _imgY: imgY, _imgW: imgW, _imgH: imgH,
+  });
+  // Any new action clears redo
+  adjRedoStack[idx] = [];
+  updateAdjHistoryBtns();
+}
+
+function updateAdjHistoryBtns() {
+  const idx = selectedIdx;
+  const canUndo = adjUndoStack[idx] && adjUndoStack[idx].length > 0;
+  const canRedo = adjRedoStack[idx] && adjRedoStack[idx].length > 0;
+  document.getElementById('undo-adj-btn').disabled = !canUndo;
+  document.getElementById('redo-adj-btn').disabled = !canRedo;
+}
+
+function undoAdj() {
+  const idx = selectedIdx;
+  if (!adjUndoStack[idx] || !adjUndoStack[idx].length) return;
+  if (!adjRedoStack[idx]) adjRedoStack[idx] = [];
+  // Push current state (settings + zoom) onto redo
+  adjRedoStack[idx].push({
+    ...imageSettings[idx],
+    _imgX: imgX, _imgY: imgY, _imgW: imgW, _imgH: imgH,
+  });
+  // Pop from undo and restore
+  const prev = adjUndoStack[idx].pop();
+  imageSettings[idx] = { brightness: prev.brightness, contrast: prev.contrast, sharpness: prev.sharpness, colour: prev.colour, warmth: prev.warmth || 0, highlights: prev.highlights || 0, shadows: prev.shadows || 0, rotation: prev.rotation };
+  restoreSettingsFromObj(prev);
+  updateAdjHistoryBtns();
+}
+
+function redoAdj() {
+  const idx = selectedIdx;
+  if (!adjRedoStack[idx] || !adjRedoStack[idx].length) return;
+  if (!adjUndoStack[idx]) adjUndoStack[idx] = [];
+  // Push current state (settings + zoom) onto undo
+  adjUndoStack[idx].push({
+    ...imageSettings[idx],
+    _imgX: imgX, _imgY: imgY, _imgW: imgW, _imgH: imgH,
+  });
+  // Pop from redo and restore
+  const next = adjRedoStack[idx].pop();
+  imageSettings[idx] = { brightness: next.brightness, contrast: next.contrast, sharpness: next.sharpness, colour: next.colour, warmth: next.warmth || 0, highlights: next.highlights || 0, shadows: next.shadows || 0, rotation: next.rotation };
+  restoreSettingsFromObj(next);
+  updateAdjHistoryBtns();
+}
+
+function restoreSettingsFromObj(s) {
+  SLIDERS.forEach(sl => {
+    const v = s[sl.id] || 0;
+    document.getElementById(sl.range).value = v;
+    const badge = document.getElementById(sl.val);
+    badge.textContent = (v >= 0 ? '+' : '') + v;
+    badge.className = 'val-badge' + (v === 0 ? ' zero' : '');
+  });
+  const prevRot = currentRotation;
+  currentRotation = s.rotation || 0;
+  updateRotationLabel();
+  updateThumbRotBadge(selectedIdx);
+  updateThumbCustomDot(selectedIdx);
+  // Restore zoom/pan if captured
+  if (s._imgW !== undefined) {
+    imgX = s._imgX; imgY = s._imgY;
+    imgW = s._imgW; imgH = s._imgH;
+    if (s._canvasW) { canvasW = s._canvasW; canvasH = s._canvasH; }
+  }
+  // If rotation changed, invalidate dims cache
+  if (currentRotation !== prevRot) {
+    naturalW = 0; naturalH = 0; canvasW = 0; canvasH = 0;
+  }
+  render();
+  setStatus('', '');
+}
+
+function saveCurrentSettings() {
+  if (!fileList[selectedIdx]) return;
+  imageSettings[selectedIdx] = {
+    brightness: parseInt(document.getElementById('brightness-range').value),
+    contrast:   parseInt(document.getElementById('contrast-range').value),
+    sharpness:  parseInt(document.getElementById('sharpness-range').value),
+    colour:     parseInt(document.getElementById('colour-range').value),
+    warmth:     parseInt(document.getElementById('warmth-range').value),
+    highlights: parseInt(document.getElementById('highlights-range').value),
+    shadows:    parseInt(document.getElementById('shadows-range').value),
+    rotation:   imageSettings[selectedIdx] ? imageSettings[selectedIdx].rotation : 0,
+    straighten: imageSettings[selectedIdx] ? (imageSettings[selectedIdx].straighten || 0) : 0,
+    // Per-image shadow on/off override (null = use global, true/false = overridden)
+    shadowEnabled: shadowEnabled,
+    // Persist pan/zoom layout so it survives thumbnail switching
+    _imgX: imgX, _imgY: imgY, _imgW: imgW, _imgH: imgH,
+    _canvasW: canvasW, _canvasH: canvasH,
+  };
+}
+
+function applySettings(idx) {
+  const s = imageSettings[idx] || DEFAULT_SETTINGS();
+  SLIDERS.forEach(sl => {
+    const v = s[sl.id] || 0;
+    document.getElementById(sl.range).value = v;
+    const badge = document.getElementById(sl.val);
+    badge.textContent = (v >= 0 ? '+' : '') + v;
+    badge.className = 'val-badge' + (v === 0 ? ' zero' : '');
+  });
+  currentRotation = s.rotation || 0;
+  updateRotationLabel();
+  // Restore straighten
+  const sv = s.straighten || 0;
+  document.getElementById('straighten-range').value = sv;
+  document.getElementById('straighten-val').textContent = sv === 0 ? '0°' : (sv > 0 ? '+' : '') + sv + '°';
+  currentStraighten = sv;
+  setTimeout(() => updateThumbCustomDot(idx), 0);
+}
+
+const previewCanvas = document.getElementById('preview-canvas');
+const pCtx = previewCanvas.getContext('2d');
+const workCanvas = document.getElementById('work-canvas');
+const wCtx = workCanvas.getContext('2d');
+
+// ── File handling ──
+const dz = document.getElementById('drop-zone');
+const fi = document.getElementById('file-input');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); handleFiles(e.dataTransfer.files); });
+fi.addEventListener('change', () => handleFiles(fi.files));
+
+// Override drop zone click to use showOpenFilePicker with session folder hint
+dz.addEventListener('click', async e => {
+  e.stopImmediatePropagation();
+  if (!window.showOpenFilePicker) {
+    // Fallback for Firefox/Safari
+    fi.click();
+    return;
+  }
+  try {
+    const opts = {
+      multiple: true,
+      types: [{ description: 'Images', accept: { 'image/*': ['.jpg', '.jpeg', '.png', '.webp'] } }],
+    };
+    // Point picker at the session root folder if we have a handle
+    if (window.__rootHandle) opts.startIn = window.__rootHandle;
+    const fileHandles = await window.showOpenFilePicker(opts);
+    const files = await Promise.all(fileHandles.map(h => h.getFile()));
+    handleFiles(files);
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      // If File System Access API fails for any reason, fall back
+      fi.click();
+    }
+  }
+});
+
+function handleFiles(files) {
+  // Capture state before the loop — used to auto-select the first image of this batch
+  const firstNewIdx = fileList.length;
+  const wasEmpty = !originals.some(Boolean);
+
+  for (const f of files) {
+    if (!f.type.startsWith('image/')) continue;
+    const idx = fileList.length;
+    fileList.push(f); originals.push(null);
+    const reader = new FileReader();
+    reader.onload = ev => {
+      originals[idx] = ev.target.result;
+
+      // If any existing image has non-default slider adjustments, inherit them
+      // Rotation and pan/zoom are image-specific — never auto-inherited
+      const donor = imageSettings.find((s, i) => i !== idx && s && (
+        s.brightness !== 0 || s.contrast !== 0 || s.sharpness !== 0 || s.colour !== 0 ||
+        s.warmth !== 0 || s.highlights !== 0 || s.shadows !== 0
+      ));
+      imageSettings[idx] = donor
+        ? { brightness: donor.brightness, contrast: donor.contrast, sharpness: donor.sharpness, colour: donor.colour, warmth: donor.warmth || 0, highlights: donor.highlights || 0, shadows: donor.shadows || 0, rotation: 0 }
+        : DEFAULT_SETTINGS();
+
+      addThumb(idx, ev.target.result, f.name);
+      // Update custom dot and show toast if settings were inherited
+      if (donor) {
+        setTimeout(() => updateThumbCustomDot(idx), 0);
+        const parts = [];
+        if (donor.brightness !== 0) parts.push('brightness');
+        if (donor.contrast   !== 0) parts.push('contrast');
+        if (donor.sharpness  !== 0) parts.push('sharpness');
+        if (donor.colour     !== 0) parts.push('colour');
+        if (donor.warmth     !== 0) parts.push('warmth');
+        if (donor.highlights !== 0) parts.push('highlights');
+        if (donor.shadows    !== 0) parts.push('shadows');
+        setStatus(`New image inherited: ${parts.join(', ')} ✓`, 'ok');
+      }
+      // Auto-select the first image of this batch if the editor was empty before upload
+      if (wasEmpty && idx === firstNewIdx) selectImage(idx);
+      updateCountPill();
+      updatePreviewBgBtn();
+      updateNavZones();
+    };
+    reader.readAsDataURL(f);
+  }
+}
+
+// ── Per-session saved tracking ──
+const savedSet = new Set(); // indices saved this session
+
+function markSaved(idx) {
+  savedSet.add(idx);
+  updateThumbSavedBadge(idx);
+}
+
+function updateThumbSavedBadge(idx) {
+  const badge = document.getElementById('saved-badge-' + idx);
+  if (!badge) return;
+  badge.style.display = savedSet.has(idx) ? 'flex' : 'none';
+}
+
+function addThumb(idx, src, name) {
+  const strip = document.getElementById('thumb-strip-film');
+  const div = document.createElement('div');
+  div.className = 'thumb'; div.dataset.idx = idx;
+  const img = document.createElement('img'); img.src = src;
+  const lbl = document.createElement('div'); lbl.className = 'thumb-label'; lbl.textContent = name;
+  const del = document.createElement('button');
+  del.className = 'thumb-delete'; del.textContent = '✕'; del.title = 'Remove image';
+  del.addEventListener('click', e => { e.stopPropagation(); deleteImage(parseInt(div.dataset.idx)); });
+  // Rotation badge
+  const rotBadge = document.createElement('div');
+  rotBadge.className = 'thumb-rot-badge'; rotBadge.id = 'rot-badge-' + idx;
+  rotBadge.style.cssText = 'position:absolute;top:2px;left:2px;font-family:var(--mono);font-size:7px;background:rgba(200,240,96,.88);color:#0a0a0a;padding:1px 3px;border-radius:2px;display:none;pointer-events:none;';
+  // Custom-settings dot (shown when image has any non-default adjustment)
+  const customDot = document.createElement('div');
+  customDot.id = 'custom-dot-' + idx;
+  customDot.style.cssText = 'position:absolute;bottom:12px;right:3px;width:5px;height:5px;border-radius:50%;background:var(--cool);display:none;pointer-events:none;border:1px solid rgba(0,0,0,.4);';
+  customDot.title = 'Has custom adjustments';
+  const imgWrap = document.createElement('div'); imgWrap.className = 'thumb-img-wrap';
+  imgWrap.appendChild(img);
+  // Saved-this-session badge (green ✓ bottom-left)
+  const savedBadge = document.createElement('div');
+  savedBadge.id = 'saved-badge-' + idx;
+  savedBadge.style.cssText = 'position:absolute;bottom:12px;left:3px;width:13px;height:13px;border-radius:50%;background:#60d080;display:none;pointer-events:none;border:1.5px solid rgba(0,0,0,.5);align-items:center;justify-content:center;font-size:8px;color:#0a0a0a;font-weight:700;';
+  savedBadge.textContent = '✓';
+  savedBadge.title = 'Saved this session';
+  div.appendChild(imgWrap); div.appendChild(lbl); div.appendChild(del); div.appendChild(rotBadge); div.appendChild(customDot); div.appendChild(savedBadge);
+  div.addEventListener('click', () => selectImage(parseInt(div.dataset.idx)));
+  strip.appendChild(div);
+}
+
+function updateThumbRotBadge(idx) {
+  const badge = document.getElementById('rot-badge-' + idx);
+  if (!badge) return;
+  const rot = imageSettings[idx] ? imageSettings[idx].rotation : 0;
+  if (rot) { badge.textContent = rot + '°'; badge.style.display = ''; }
+  else badge.style.display = 'none';
+}
+
+function deleteImage(idx) {
+  originals.splice(idx, 1);
+  fileList.splice(idx, 1);
+  imageSettings.splice(idx, 1);
+  adjUndoStack.splice(idx, 1);
+  adjRedoStack.splice(idx, 1);
+  savedSet.delete(idx);
+  // Shift all higher indices down in savedSet
+  const shifted = new Set();
+  for (const i of savedSet) shifted.add(i > idx ? i - 1 : i);
+  savedSet.clear();
+  for (const i of shifted) savedSet.add(i);
+  const strip = document.getElementById('thumb-strip-film');
+  strip.innerHTML = '';
+  for (let i = 0; i < fileList.length; i++) {
+    addThumb(i, originals[i], fileList[i].name);
+  }
+  updateCountPill();
+  if (fileList.length === 0) {
+    selectedIdx = 0;
+    document.getElementById('compose-wrap').style.display = 'none';
+    document.getElementById('empty-state').style.display = '';
+    document.getElementById('info-overlay').style.display = 'none';
+    setStatus('Ready');
+  } else {
+    selectImage(Math.min(idx, fileList.length - 1));
+  }
+}
+
+function selectImage(idx) {
+  if (fileList[selectedIdx]) saveCurrentSettings();
+
+  selectedIdx = idx;
+  naturalW = 0; naturalH = 0;
+
+  // Restore or reset canvas frame
+  const s = imageSettings[idx];
+  const hasSavedLayout = s && s._imgW && s._canvasW;
+  if (hasSavedLayout) {
+    canvasW = s._canvasW; canvasH = s._canvasH;
+    imgX = s._imgX; imgY = s._imgY;
+    imgW = s._imgW; imgH = s._imgH;
+  } else {
+    canvasW = 0; canvasH = 0;
+    imgX = 0; imgY = 0; imgW = 0; imgH = 0;
+  }
+
+  document.querySelectorAll('.thumb').forEach(t => t.classList.toggle('active', parseInt(t.dataset.idx) === idx));
+  const info = document.getElementById('info-overlay');
+  info.textContent = fileList[idx].name;
+  info.style.display = 'block';
+
+  applySettings(idx);
+  updateAdjHistoryBtns();
+  updatePreviewBgBtn();
+
+  // Restore per-image shadow enabled state if saved
+  const s2 = imageSettings[idx];
+  if (s2 && s2.shadowEnabled !== undefined) {
+    shadowEnabled   = s2.shadowEnabled;
+    shadowDirection = shadowEnabled ? 'angle' : 'none';
+    updateShadowDialReadout();
+    setTimeout(() => drawShadowDial(), 0);
+  }
+
+  // Restore BG preview badge for this image if it was active
+  const hasBgPreview = bgPreviewSet.has(idx) && !!bgRemovedCache[idx];
+  document.getElementById('bg-preview-badge').style.display = hasBgPreview ? 'block' : 'none';
+
+  render();
+}
+
+function updateCountPill() {
+  const n = fileList.filter(Boolean).length;
+  document.getElementById('count-pill').textContent = n === 0 ? 'no images' : `${n} image${n>1?'s':''}`;
+  document.getElementById('save-all-btn').style.display = n > 1 ? 'block' : 'none';
+}
+
+// ── Sliders ──
+const SLIDERS = [
+  { id: 'brightness', range: 'brightness-range', val: 'brightness-val' },
+  { id: 'contrast',   range: 'contrast-range',   val: 'contrast-val' },
+  { id: 'sharpness',  range: 'sharpness-range',  val: 'sharpness-val' },
+  { id: 'colour',     range: 'colour-range',      val: 'colour-val' },
+  { id: 'warmth',     range: 'warmth-range',      val: 'warmth-val' },
+  { id: 'highlights', range: 'highlights-range',  val: 'highlights-val' },
+  { id: 'shadows',    range: 'shadows-range',     val: 'shadows-val' },
+];
+
+SLIDERS.forEach(s => {
+  let _sliderDragging = false;
+  document.getElementById(s.range).addEventListener('mousedown', function() {
+    // Capture state before drag begins (once per drag gesture)
+    _sliderDragging = true;
+    pushAdjUndo(selectedIdx);
+  });
+  document.getElementById(s.range).addEventListener('mouseup', function() {
+    _sliderDragging = false;
+  });
+  document.getElementById(s.range).addEventListener('input', function() {
+    const v = parseInt(this.value);
+    const badge = document.getElementById(s.val);
+    badge.textContent = (v >= 0 ? '+' : '') + v;
+    badge.className = 'val-badge' + (v === 0 ? ' zero' : '');
+    if (imageSettings[selectedIdx]) imageSettings[selectedIdx][s.id] = v;
+    updateThumbCustomDot(selectedIdx);
+    // If BG preview is active, just redraw — the cached bitmap has no tone adjustments
+    // baked in, so drawBgPreview() applies brightness/contrast/colour live via CSS filter.
+    // No need to re-run the expensive BG removal AI step.
+    if (bgPreviewSet.has(selectedIdx)) {
+      redraw();
+    } else {
+      render();
+    }
+  });
+});
+
+function getVal(rangeId) { return parseInt(document.getElementById(rangeId).value); }
+
+function getParams() {
+  return {
+    brightness: getVal('brightness-range'),
+    contrast:   getVal('contrast-range'),
+    sharpness:  getVal('sharpness-range'),
+    colour:     getVal('colour-range'),
+    warmth:     getVal('warmth-range'),
+    highlights: getVal('highlights-range'),
+    shadows:    getVal('shadows-range'),
+    rotation:   currentRotation,
+    straighten: currentStraighten,
+    red: 0, green: 0, blue: 0, thresh: 0,
+  };
+}
+
+
+// ── Image processing ──
+function processPixels(imageData, p) {
+  const d = imageData.data;
+  const cfactor = p.contrast !== 0 ? (259*(p.contrast+255))/(255*(259-p.contrast)) : 1;
+  const totalR = p.red || 0, totalG = p.green || 0, totalB = p.blue || 0;
+  for (let i = 0; i < d.length; i += 4) {
+    let r = d[i], g = d[i+1], b = d[i+2];
+    if (p.thresh > 0) {
+      const mn = Math.min(r,g,b), sat = Math.max(r,g,b) - mn;
+      if (mn >= (255-p.thresh) && sat <= 30) { r=g=b=255; }
+    }
+    // Brightness: flat additive per channel — ground truth for saved output
+    r += p.brightness; g += p.brightness; b += p.brightness;
+    if (p.contrast !== 0) {
+      r = cfactor*(r-128)+128; g = cfactor*(g-128)+128; b = cfactor*(b-128)+128;
+    }
+    if (p.colour !== 0) {
+      const grey = 0.2989*r + 0.5870*g + 0.1140*b;
+      const sf = 1.0 + p.colour/100.0;
+      r = grey + sf*(r-grey); g = grey + sf*(g-grey); b = grey + sf*(b-grey);
+    }
+    // Warmth: shift red/blue channels (+warm = redder/yellower, -warm = cooler/bluer)
+    if (p.warmth !== 0) {
+      const w = p.warmth * 0.35;
+      r += w; b -= w;
+    }
+    // Highlights: boost/cut only bright tones (lum > 128), feathered
+    // Shadows: boost/cut only dark tones (lum < 128), feathered
+    if (p.highlights !== 0 || p.shadows !== 0) {
+      const lum = 0.2989*r + 0.5870*g + 0.1140*b;
+      if (p.highlights !== 0) {
+        const hw = Math.max(0, (lum - 100) / 155); // smooth ramp: 0 at lum≤100, 1 at lum=255
+        const adj = p.highlights * 0.55 * hw;
+        r += adj; g += adj; b += adj;
+      }
+      if (p.shadows !== 0) {
+        const sw = Math.max(0, (155 - lum) / 155); // smooth ramp: 1 at lum=0, 0 at lum≥155
+        const adj = p.shadows * 0.55 * sw;
+        r += adj; g += adj; b += adj;
+      }
+    }
+    r += totalR; g += totalG; b += totalB;
+    d[i]   = Math.min(255,Math.max(0,Math.round(r)));
+    d[i+1] = Math.min(255,Math.max(0,Math.round(g)));
+    d[i+2] = Math.min(255,Math.max(0,Math.round(b)));
+  }
+  return imageData;
+}
+
+function applySharpness(ctx, w, h, amount) {
+  if (amount === 0) return;
+  const s = amount / 100.0;
+  const id = ctx.getImageData(0,0,w,h);
+  const src = new Uint8ClampedArray(id.data);
+  const d = id.data;
+  const k = [-s,-s,-s, -s,1+8*s,-s, -s,-s,-s];
+  for (let y=1;y<h-1;y++) for (let x=1;x<w-1;x++) for (let c=0;c<3;c++) {
+    let v=0;
+    for (let ky=-1;ky<=1;ky++) for (let kx=-1;kx<=1;kx++)
+      v += src[((y+ky)*w+(x+kx))*4+c] * k[(ky+1)*3+(kx+1)];
+    d[(y*w+x)*4+c] = Math.min(255,Math.max(0,Math.round(v)));
+  }
+  ctx.putImageData(id,0,0);
+}
+
+// ── Compose state ──
+// canvasW/H = the output frame (what gets saved)
+// imgX/Y/W/H = where the processed image sits within that frame (in output px)
+let naturalW = 0, naturalH = 0;
+let canvasW = 0, canvasH = 0;     // output frame size
+let imgX = 0, imgY = 0;           // image position within frame (output px)
+let imgW = 0, imgH = 0;           // image display size within frame (output px)
+let processedSrc = null;          // result of pixel processing (dataURL)
+let currentPreset = 'original';
+let currentRotation = 0;          // degrees: 0, 90, 180, 270
+let currentStraighten = 0;        // degrees: -10 to +10, fine rotation
+
+// Display scale: output px → screen px
+let dispScale = 1;
+
+// ── Load natural dims ──
+function loadNaturalDims(src) {
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => {
+      const rot = currentRotation % 360;
+      const swapped = rot === 90 || rot === 270;
+      naturalW = swapped ? img.naturalHeight : img.naturalWidth;
+      naturalH = swapped ? img.naturalWidth  : img.naturalHeight;
+      res();
+    };
+    img.src = src;
+  });
+}
+
+// ── Pixel processing into an offscreen canvas → dataURL ──
+function renderToCanvas(ctx, src, p, targetW, targetH) {
+  const img = new Image();
+  return new Promise(res => {
+    img.onload = () => {
+      const natW = img.naturalWidth, natH = img.naturalHeight;
+      const rot = (p.rotation || 0) % 360;
+      const swapped = rot === 90 || rot === 270;
+      let outW = targetW || natW, outH = targetH || natH;
+      // If rotated 90/270, swap the canvas dimensions
+      const canvW = swapped ? outH : outW;
+      const canvH = swapped ? outW : outH;
+      ctx.canvas.width = canvW; ctx.canvas.height = canvH;
+      ctx.fillStyle = 'white'; ctx.fillRect(0, 0, canvW, canvH);
+      ctx.save();
+      ctx.translate(canvW / 2, canvH / 2);
+      ctx.rotate(rot * Math.PI / 180);
+      if (p.straighten) ctx.rotate(p.straighten * Math.PI / 180);
+      ctx.drawImage(img, -outW / 2, -outH / 2, outW, outH);
+      ctx.restore();
+      let id = ctx.getImageData(0, 0, canvW, canvH);
+      id = processPixels(id, p);
+      ctx.putImageData(id, 0, 0);
+      if (p.sharpness !== 0) applySharpness(ctx, canvW, canvH, p.sharpness);
+      res(ctx.canvas.toDataURL('image/png'));
+    };
+    img.src = src;
+  });
+}
+
+// ── Draw the compose frame onto previewCanvas ──
+let _composeImg = null;
+let _composeSrc = null;
+
+function drawCompose() {
+  const cw = canvasW, ch = canvasH;
+  previewCanvas.width  = Math.round(cw * dispScale);
+  previewCanvas.height = Math.round(ch * dispScale);
+  const ctx = pCtx;
+
+  // Use the selected background colour when BG preview is active, otherwise white
+  if (bgPreviewSet.has(selectedIdx) && bgColour && bgColour !== 'none') {
+    ctx.fillStyle = bgColour;
+  } else if (bgPreviewSet.has(selectedIdx) && bgColour === 'none') {
+    // Checkerboard for transparent
+    const sz = 12;
+    for (let y = 0; y < previewCanvas.height; y += sz) {
+      for (let x = 0; x < previewCanvas.width; x += sz) {
+        ctx.fillStyle = (Math.floor(x/sz) + Math.floor(y/sz)) % 2 === 0 ? '#cccccc' : '#ffffff';
+        ctx.fillRect(x, y, sz, sz);
+      }
+    }
+    ctx.fillStyle = 'transparent'; // prevent the fillRect below from clobbering checkerboard
+  } else {
+    ctx.fillStyle = '#ffffff';
+  }
+  if (bgColour !== 'none' || !bgPreviewSet.has(selectedIdx)) {
+    ctx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+  }
+
+  if (processedSrc) {
+    const doDraw = (img) => {
+      ctx.drawImage(img,
+        Math.round(imgX * dispScale), Math.round(imgY * dispScale),
+        Math.round(imgW * dispScale), Math.round(imgH * dispScale));
+      ctx.strokeStyle = 'rgba(200,240,96,0.25)';
+      ctx.setLineDash([4,4]);
+      ctx.strokeRect(0.5, 0.5, previewCanvas.width-1, previewCanvas.height-1);
+      ctx.setLineDash([]);
+    };
+    if (_composeSrc === processedSrc && _composeImg) {
+      // Reuse cached image (avoids repeated decode on pan/zoom)
+      doDraw(_composeImg);
+    } else {
+      const img = new Image();
+      img.onload = () => {
+        _composeImg = img;
+        _composeSrc = processedSrc;
+        doDraw(img);
+      };
+      img.src = processedSrc;
+    }
+  }
+
+  document.getElementById('dims-badge').textContent = `${cw} × ${ch} px`;
+  fitWrapToPane();
+}
+
+function fitWrapToPane() {
+  const wrap = document.getElementById('compose-wrap');
+  const pane = document.getElementById('preview-pane');
+  const pw = pane.clientWidth - 40, ph = pane.clientHeight - 40;
+  const cw = previewCanvas.width, ch = previewCanvas.height;
+  const s  = Math.min(pw / cw, ph / ch, 1);
+  const dw = Math.round(cw * s), dh = Math.round(ch * s);
+  wrap.style.width  = dw + 'px';
+  wrap.style.height = dh + 'px';
+  previewCanvas.style.width  = dw + 'px';
+  previewCanvas.style.height = dh + 'px';
+  // visual scale factor (compose-wrap display px per output px)
+}
+
+let renderPending = false;
+let renderDirty = false; // true if a render was requested while one was in flight
+
+async function render() {
+  if (!originals[selectedIdx]) return;
+  if (renderPending) { renderDirty = true; return; }
+  renderPending = true;
+  renderDirty = false;
+
+  try {
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('compose-wrap').style.display = 'block';
+
+    const p = getParams();
+    if (!naturalW) await loadNaturalDims(originals[selectedIdx]);
+
+    // Process pixels at natural size (capped for speed)
+    const MAX = 1600;
+    const ps = Math.min(1, MAX / Math.max(naturalW, naturalH));
+    processedSrc = await renderToCanvas(wCtx, originals[selectedIdx], p,
+      Math.round(naturalW * ps), Math.round(naturalH * ps));
+
+    // Init canvas & image dims if not set
+    if (!canvasW) initCompose();
+
+    redraw();
+    updateExportDimsHint();
+  } catch (err) {
+    console.error('Render error:', err);
+  } finally {
+    renderPending = false;
+    // If state changed while we were rendering, kick off another pass
+    if (renderDirty) render();
+  }
+}
+
+function initCompose() {
+  applyPreset(currentPreset);
+}
+
+// ── Preset logic ──
+function setPreset(btn) {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentPreset = btn.dataset.preset;
+
+  const row = document.getElementById('custom-size-row');
+  row.style.display = currentPreset === 'custom' ? 'flex' : 'none';
+
+  if (currentPreset !== 'custom') {
+    applyPreset(currentPreset);
+    redraw();
+  }
+}
+
+function applyPreset(preset) {
+  const base = Math.max(naturalW, naturalH) || 1200;
+  if (preset === 'original' || !preset) {
+    canvasW = naturalW; canvasH = naturalH;
+  } else if (preset === 'landscape') {
+    canvasW = base; canvasH = Math.round(base * 2/3);
+  } else if (preset === 'portrait') {
+    canvasH = base; canvasW = Math.round(base * 2/3);
+  } else if (preset === 'square') {
+    canvasW = canvasH = base;
+  }
+  // Fit image inside canvas, centred — use consistent floor to avoid drift
+  const scaleX = canvasW / naturalW;
+  const scaleY = canvasH / naturalH;
+  const scale  = Math.min(scaleX, scaleY);
+  imgW = Math.floor(naturalW * scale);
+  imgH = Math.floor(naturalH * scale);
+  imgX = Math.floor((canvasW - imgW) / 2);
+  imgY = Math.floor((canvasH - imgH) / 2);
+}
+
+function applyCustomSize() {
+  const cw = parseInt(document.getElementById('canvas-w').value);
+  const ch = parseInt(document.getElementById('canvas-h').value);
+  if (!cw || !ch) { setStatus('Enter both width and height.', 'err'); return; }
+  canvasW = cw; canvasH = ch;
+  const scale = Math.min(canvasW / naturalW, canvasH / naturalH);
+  imgW = Math.round(naturalW * scale);
+  imgH = Math.round(naturalH * scale);
+  imgX = Math.round((canvasW - imgW) / 2);
+  imgY = Math.round((canvasH - imgH) / 2);
+  redraw();
+}
+
+function resetCompose() {
+  if (!naturalW) return;
+  pushAdjUndo(selectedIdx);
+  applyPreset(currentPreset);
+  drawCompose();
+  setStatus('Position reset.', 'ok');
+}
+
+// ── Rubber-band zoom ──
+let freehand = false;
+
+function toggleFreehand(btn) {
+  freehand = !freehand;
+  btn.classList.toggle('active', freehand);
+  setStatus(freehand ? 'Freehand selection — unconstrained.' : 'Selection constrained to canvas ratio.', 'ok');
+}
+
+const selBox = document.getElementById('sel-box');
+let selecting = false;
+let selStart = { x: 0, y: 0 };  // in canvas display px
+let selRect  = { x: 0, y: 0, w: 0, h: 0 };
+
+previewCanvas.addEventListener('dblclick', e => {
+  if (!processedSrc && !bgPreviewSet.has(selectedIdx)) return;
+  e.preventDefault();
+  pushAdjUndo(selectedIdx);
+  const cr = previewCanvas.getBoundingClientRect();
+  const clickX = e.clientX - cr.left;  // display px
+  const clickY = e.clientY - cr.top;
+
+  // Convert click to output-canvas coords
+  const dispW = parseFloat(previewCanvas.style.width)  || previewCanvas.width;
+  const toOut = canvasW / dispW;
+  const clickOutX = clickX * toOut;
+  const clickOutY = clickY * toOut;
+
+  // Shift image so the clicked point lands at canvas centre
+  imgX = Math.round(imgX + (canvasW / 2 - clickOutX));
+  imgY = Math.round(imgY + (canvasH / 2 - clickOutY));
+
+  redraw();
+  saveCurrentSettings();
+  setStatus('Image centred on click point.', 'ok');
+});
+
+// ── Left-drag = rubber-band zoom | Right-drag = pan ──
+
+let panOrigin = null;
+let isPanning = false;
+
+// Suppress the context menu on right-click so right-drag works cleanly
+previewCanvas.addEventListener('contextmenu', e => e.preventDefault());
+
+previewCanvas.addEventListener('mousedown', e => {
+  if (!processedSrc && !bgPreviewSet.has(selectedIdx)) return;
+  e.preventDefault();
+
+  if (e.button === 2) {
+    // ── Right button → pan ──
+    isPanning = true;
+    panOrigin = { x: e.clientX, y: e.clientY, imgX, imgY };
+    pushAdjUndo(selectedIdx);
+    previewCanvas.style.cursor = 'grabbing';
+    return;
+  }
+
+  if (e.button === 0) {
+    // ── Left button → rubber-band ──
+    selecting = true;
+    const cr = previewCanvas.getBoundingClientRect();
+    selStart.x = e.clientX - cr.left;
+    selStart.y = e.clientY - cr.top;
+    selRect = { x: selStart.x, y: selStart.y, w: 0, h: 0 };
+    selBox.style.display = 'none';
+    selBox.dataset.label = freehand ? 'Freehand — release to zoom' : 'Canvas ratio — release to zoom';
+  }
+});
+
+document.addEventListener('mousemove', e => {
+  if (isPanning) {
+    // If right button is no longer held (e.g. released outside window), cancel pan
+    if (!(e.buttons & 2)) {
+      isPanning = false;
+      panOrigin = null;
+      previewCanvas.style.cursor = 'crosshair';
+      saveCurrentSettings();
+      return;
+    }
+    const dx = e.clientX - panOrigin.x;
+    const dy = e.clientY - panOrigin.y;
+    const dispW = parseFloat(previewCanvas.style.width) || previewCanvas.width;
+    const screenToOut = canvasW / dispW;
+    imgX = Math.round(panOrigin.imgX + dx * screenToOut);
+    imgY = Math.round(panOrigin.imgY + dy * screenToOut);
+    redraw();
+    return;
+  }
+
+  if (!selecting) return;
+
+  // Rubber-band selection
+  const cr = previewCanvas.getBoundingClientRect();
+  const mx = Math.max(0, Math.min(e.clientX - cr.left, cr.width));
+  const my = Math.max(0, Math.min(e.clientY - cr.top,  cr.height));
+  let rawW = Math.abs(mx - selStart.x);
+  let rawH = Math.abs(my - selStart.y);
+
+  // Constrain to canvas aspect ratio unless freehand mode
+  if (!freehand && canvasW && canvasH && rawW > 0 && rawH > 0) {
+    const ratio = canvasW / canvasH;
+    if (rawW / rawH > ratio) rawH = rawW / ratio;
+    else rawW = rawH * ratio;
+  }
+
+  selRect.x = mx >= selStart.x ? selStart.x : selStart.x - rawW;
+  selRect.y = my >= selStart.y ? selStart.y : selStart.y - rawH;
+  selRect.w = rawW;
+  selRect.h = rawH;
+
+  if (selRect.w > 4 && selRect.h > 4) {
+    selBox.style.left   = selRect.x + 'px';
+    selBox.style.top    = selRect.y + 'px';
+    selBox.style.width  = selRect.w + 'px';
+    selBox.style.height = selRect.h + 'px';
+    selBox.style.display = 'block';
+  }
+});
+
+document.addEventListener('mouseup', e => {
+  if (e.button === 2 && isPanning) {
+    isPanning = false;
+    panOrigin = null;
+    previewCanvas.style.cursor = 'crosshair';
+    saveCurrentSettings();
+    return;
+  }
+
+  if (e.button === 0 && selecting) {
+    selecting = false;
+    selBox.style.display = 'none';
+    previewCanvas.style.cursor = 'crosshair';
+    if (selRect.w < 8 || selRect.h < 8) return;
+    applyRubberBandZoom(selRect);
+  }
+});
+
+function applyRubberBandZoom(sel) {
+  // sel is in canvas DISPLAY px — convert to output-canvas px
+  const dispW = parseFloat(previewCanvas.style.width)  || previewCanvas.width;
+  const dispH = parseFloat(previewCanvas.style.height) || previewCanvas.height;
+  const toOut = canvasW / dispW;  // display px → output px (same ratio both axes)
+
+  const selOutX = sel.x * toOut;
+  const selOutY = sel.y * toOut;
+  const selOutW = sel.w * toOut;
+  const selOutH = sel.h * toOut;
+
+  // Save undo state
+  pushAdjUndo(selectedIdx);
+
+  // Scale so the selected region fills the canvas (keep aspect, centre it)
+  const zoom = Math.min(canvasW / selOutW, canvasH / selOutH);
+  const newW = Math.round(imgW * zoom);
+  const newH = Math.round(imgH * zoom);
+
+  // Fraction of the current image that the selection's top-left represents
+  const fracX = (selOutX - imgX) / imgW;
+  const fracY = (selOutY - imgY) / imgH;
+
+  // Centre the zoomed selection in the canvas
+  const centreOffX = (canvasW - selOutW * zoom) / 2;
+  const centreOffY = (canvasH - selOutH * zoom) / 2;
+
+  imgW = newW;
+  imgH = newH;
+  imgX = Math.round(-fracX * newW + centreOffX);
+  imgY = Math.round(-fracY * newH + centreOffY);
+
+  redraw();
+  saveCurrentSettings();
+  setStatus('Selection zoomed — draw another to zoom further, or Undo to step back', 'ok');
+}
+
+// ── Scroll wheel zoom ──
+const previewPane = document.getElementById('preview-pane');
+previewPane.addEventListener('wheel', e => {
+  if (!processedSrc && !bgPreviewSet.has(selectedIdx)) return;
+
+  // Only zoom when the cursor is actually over the image canvas, not the surrounding pane
+  const cr = previewCanvas.getBoundingClientRect();
+  if (e.clientX < cr.left || e.clientX > cr.right || e.clientY < cr.top || e.clientY > cr.bottom) return;
+
+  e.preventDefault();
+
+  const ZOOM_FACTOR = 1.12;
+  const factor = e.deltaY < 0 ? ZOOM_FACTOR : 1 / ZOOM_FACTOR;
+
+  // Get cursor position relative to canvas display
+  const mx = e.clientX - cr.left;
+  const my = e.clientY - cr.top;
+
+  // Convert to output-canvas coords
+  const dispW = parseFloat(previewCanvas.style.width) || previewCanvas.width;
+  const toOut = canvasW / dispW;
+  const curOutX = mx * toOut;
+  const curOutY = my * toOut;
+
+  // Save undo state (throttle: only save if last entry differs)
+  const last = adjUndoStack[selectedIdx] && adjUndoStack[selectedIdx][adjUndoStack[selectedIdx].length - 1];
+  if (!last || last._imgW !== imgW || last._imgH !== imgH) {
+    pushAdjUndo(selectedIdx);
+  }
+
+  // Scale image around cursor point
+  const newW = Math.round(imgW * factor);
+  const newH = Math.round(imgH * factor);
+  const fracX = (curOutX - imgX) / imgW;
+  const fracY = (curOutY - imgY) / imgH;
+  imgW = newW; imgH = newH;
+  imgX = Math.round(curOutX - fracX * newW);
+  imgY = Math.round(curOutY - fracY * newH);
+
+  redraw();
+  saveCurrentSettings();
+}, { passive: false });
+
+// ── BG Remove toggle state ──
+let bgRemoveEnabled = true;
+let cropToContentEnabled = false;
+
+// ── Shadow state ──
+let shadowDirection = 'none';   // kept for applyBgShadowToAll serialisation compat
+let shadowAngleDeg  = 180;      // 0–360, degrees clockwise from top. 180 = shadow falls down
+let shadowEnabled   = false;    // true when shadow is on
+let shadowStrength  = 74;       // 0–100
+let shadowSoftness  = 21;       // 0–100
+let shadowSpread    = 70;       // 5–200, shadow length along direction axis
+let shadowWidth     = 107;      // 5–200, shadow width perpendicular to direction axis
+let shadowLength    = 70;       // kept in sync with spread for drawShadow compat
+let shadowDistance  = 80;       // 0–100
+
+function toggleCropToContent() {
+  cropToContentEnabled = !cropToContentEnabled;
+  const row = document.getElementById('crop-toggle-row');
+  row.classList.toggle('on', cropToContentEnabled);
+  document.getElementById('crop-padding-row').style.display = cropToContentEnabled ? 'block' : 'none';
+}
+
+// Helper: decode a blob to a canvas, works from file:// and http://
+async function blobToCanvas(blob) {
+  // Try createImageBitmap first (fastest, no cross-origin issues)
+  if (typeof createImageBitmap !== 'undefined') {
+    try {
+      const bmp = await createImageBitmap(blob);
+      const c = document.createElement('canvas');
+      c.width = bmp.width; c.height = bmp.height;
+      c.getContext('2d').drawImage(bmp, 0, 0);
+      bmp.close();
+      return c;
+    } catch(e) { console.warn('[blobToCanvas] createImageBitmap failed, falling back', e); }
+  }
+  // Fallback: FileReader → dataURL → Image (works everywhere)
+  const dataUrl = await new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => res(fr.result);
+    fr.onerror = rej;
+    fr.readAsDataURL(blob);
+  });
+  const img = new Image();
+  await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = dataUrl; });
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  c.getContext('2d').drawImage(img, 0, 0);
+  return c;
+}
+
+// ── Crop a canvas/blob to the bounding box of non-transparent pixels ──
+async function cropToContent(blob, paddingPx = 20) {
+  const tmp = await blobToCanvas(blob);
+
+  const { data, width, height } = tmp.getContext('2d').getImageData(0, 0, tmp.width, tmp.height);
+
+  // Helper: is pixel at (x,y) non-transparent?
+  const opaque = (x, y) => data[(y * width + x) * 4 + 3] > 8;
+
+  // Scan each edge independently
+  let minY = height;
+  outer1: for (let y = 0; y < height; y++)
+    for (let x = 0; x < width; x++)
+      if (opaque(x, y)) { minY = y; break outer1; }
+
+  let maxY = -1;
+  outer2: for (let y = height - 1; y >= 0; y--)
+    for (let x = 0; x < width; x++)
+      if (opaque(x, y)) { maxY = y; break outer2; }
+
+  let minX = width;
+  outer3: for (let x = 0; x < width; x++)
+    for (let y = 0; y < height; y++)
+      if (opaque(x, y)) { minX = x; break outer3; }
+
+  let maxX = -1;
+  outer4: for (let x = width - 1; x >= 0; x--)
+    for (let y = 0; y < height; y++)
+      if (opaque(x, y)) { maxX = x; break outer4; }
+
+  console.log(`[cropToContent] canvas: ${width}×${height}, bbox: minX=${minX} maxX=${maxX} minY=${minY} maxY=${maxY}, subject: ${maxX-minX+1}×${maxY-minY+1}, padding: ${paddingPx}, out: ${maxX-minX+1+paddingPx*2}×${maxY-minY+1+paddingPx*2}`);
+
+  // Nothing found — return original
+  if (maxX < minX || maxY < minY) return blob;
+
+  const subjectW = maxX - minX + 1;
+  const subjectH = maxY - minY + 1;
+
+  // Equal padding on all sides — always expand canvas, never clamp
+  const outW = subjectW + paddingPx * 2;
+  const outH = subjectH + paddingPx * 2;
+
+  const out = document.createElement('canvas');
+  out.width = outW; out.height = outH;
+  out.getContext('2d').drawImage(tmp,
+    minX, minY, subjectW, subjectH,
+    paddingPx, paddingPx, subjectW, subjectH
+  );
+
+  return new Promise(r => out.toBlob(r, 'image/png'));
+}
+let exportScale = 1.0; // 1.0 = 100%, 0.75 = 75%, etc.
+
+let bgColour = '#ffffff'; // default white background
+
+// ── Export size ──
+function setExportScale(btn) {
+  document.querySelectorAll('[data-scale]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  exportScale = parseFloat(btn.dataset.scale);
+  document.getElementById('export-size-val').textContent = Math.round(exportScale * 100) + '%';
+  updateExportDimsHint();
+}
+
+function updateExportDimsHint() {
+  const hint = document.getElementById('export-dims-hint');
+  if (!hint) return;
+  if (!naturalW || exportScale === 1.0) { hint.textContent = ''; return; }
+  const w = Math.round((canvasW || naturalW) * exportScale);
+  const h = Math.round((canvasH || naturalH) * exportScale);
+  hint.textContent = `→ ${w} × ${h} px`;
+}
+
+function updateSaveButtonLabel() {
+  document.getElementById('save-btn').textContent = '↓ Save this photo + Remove BG';
+  document.getElementById('save-all-btn').textContent = '↓ Save all photos + Remove BG';
+  document.getElementById('preview-save-btn').textContent = '↓ Save this photo';
+}
+
+function selectBgColour(btn) {
+  document.querySelectorAll('.bg-swatch').forEach(s => s.classList.remove('active'));
+  btn.classList.add('active');
+  bgColour = btn.dataset.colour;
+  const labels = {
+    'none':    'Transparent PNG',
+    '#ffffff': 'White background',
+    '#f5f5f0': 'Off-white background',
+    '#e8e8e8': 'Light grey background',
+    '#888888': 'Mid grey background',
+    '#222222': 'Dark background',
+    '#000000': 'Black background',
+    '#1a3a5c': 'Navy background',
+    '#2d6a4f': 'Forest green background',
+    '#c0392b': 'Red background',
+    '#e8a020': 'Amber background',
+    '#f0e060': 'Yellow background',
+    '#c8f060': 'Lime background',
+    '#60d0a0': 'Teal background',
+    '#8060f0': 'Purple background',
+    '#f060b0': 'Pink background',
+  };
+  document.getElementById('bg-colour-label').textContent = labels[bgColour] || `Custom: ${bgColour}`;
+  updateSaveButtonLabel();
+  updatePreviewBgBtn();
+  if (bgPreviewSet.has(selectedIdx) && bgRemovedCache[selectedIdx]) {
+    drawBgPreview(selectedIdx);
+  }
+}
+
+function onCustomColour(input) {
+  const hex = input.value;
+  // Style the custom swatch preview
+  const preview = document.getElementById('bg-custom-preview');
+  preview.style.background = hex;
+  preview.style.color = 'transparent';
+  // Select it
+  document.querySelectorAll('.bg-swatch').forEach(s => s.classList.remove('active'));
+  input.closest('.bg-swatch-custom').classList.add('active');
+  bgColour = hex;
+  document.getElementById('bg-colour-label').textContent = `Custom: ${hex}`;
+  updateSaveButtonLabel();
+  updatePreviewBgBtn();
+  if (bgPreviewSet.has(selectedIdx) && bgRemovedCache[selectedIdx]) {
+    drawBgPreview(selectedIdx);
+  }
+}
+
+// ── BG Preview ──
+const bgRemovedCache = {};   // idx → ImageBitmap of removed-bg result (neutral, no tone/rotation)
+const bgDrawCache    = {};   // idx → {canvas, sharpness, rotation} — sharpened+rotated offscreen canvas
+const bgPreviewSet   = new Set(); // indices that have BG preview active
+
+function updatePreviewBgBtn() {
+  const btn = document.getElementById('preview-bg-btn');
+  const allBtn = document.getElementById('preview-bg-all-btn');
+  if (!btn) return;
+  const show = bgRemoveEnabled && bgColour !== 'none' && !!originals[selectedIdx];
+  btn.style.display = show ? 'block' : 'none';
+  // Show "preview all" only when there are multiple images and BG removal is on with a colour
+  const total = fileList.filter(Boolean).length;
+  if (allBtn) allBtn.style.display = (show && total > 1) ? 'block' : 'none';
+  if (bgPreviewSet.has(selectedIdx)) {
+    btn.textContent = '✕ Back to original';
+    btn.style.borderColor = 'var(--accent)';
+    btn.style.color = 'var(--accent)';
+  } else {
+    btn.textContent = '◎ Preview background';
+    btn.style.borderColor = 'var(--border2)';
+    btn.style.color = 'var(--muted2)';
+  }
+}
+
+async function toggleBgPreview() {
+  if (bgPreviewSet.has(selectedIdx)) {
+    clearBgPreview();
+  } else {
+    await runBgPreview();
+  }
+}
+
+async function runBgPreview() {
+  const idx = selectedIdx;
+  if (!originals[idx]) return;
+
+  // Make sure compose dimensions are initialised before we use imgW/imgH
+  if (!canvasW || !imgW) {
+    if (!naturalW) await loadNaturalDims(originals[idx]);
+    initCompose();
+  }
+
+  if (!bgRemovedCache[idx]) {
+    setStatus('Removing background…', '');
+    // Render with NO rotation and NO tone adjustments — a truly neutral source.
+    // Rotation and brightness/contrast/colour are applied live at draw time so
+    // the cached bitmap never needs to be rebuilt just because a slider or
+    // rotation button was touched.
+    const neutralParams = {
+      brightness: 0, contrast: 0, sharpness: 0, colour: 0,
+      warmth: 0, highlights: 0, shadows: 0,
+      rotation: 0,
+      red: 0, green: 0, blue: 0, thresh: 0,
+    };
+    const MAX = 1200;  // Lower res = faster AI processing; quality difference minimal for product shots
+    const ps  = Math.min(1, MAX / Math.max(naturalW, naturalH));
+    // naturalW/H reflect the CURRENT rotation (may be swapped for 90/270).
+    // We need the true pixel dimensions for the neutral (unrotated) render.
+    const trueW = (currentRotation === 90 || currentRotation === 270) ? naturalH : naturalW;
+    const trueH = (currentRotation === 90 || currentRotation === 270) ? naturalW : naturalH;
+    const src = await renderToCanvas(wCtx, originals[idx], neutralParams,
+      Math.round(trueW * ps), Math.round(trueH * ps));
+
+    // Convert data URL → blob via canvas (works on file:// protocol)
+    const tmpImg = new Image();
+    await new Promise(r => { tmpImg.onload = r; tmpImg.src = src; });
+    const tmpCanvas = document.createElement('canvas');
+    tmpCanvas.width  = tmpImg.naturalWidth;
+    tmpCanvas.height = tmpImg.naturalHeight;
+    tmpCanvas.getContext('2d').drawImage(tmpImg, 0, 0);
+    const blob = await new Promise(r => tmpCanvas.toBlob(r, 'image/png'));
+
+    const noBgBlob = await removeBgFromBlob(blob);
+    bgRemovedCache[idx] = await createImageBitmap(noBgBlob);
+  }
+
+  bgPreviewSet.add(idx);
+  drawBgPreview(idx);
+  updatePreviewBgBtn();
+  setStatus('BG preview active — scroll to zoom · left-drag to select · right-drag to pan', 'ok');
+}
+
+// ── Run BG preview on all images in sequence ──
+async function previewBgAll() {
+  const indices = fileList.map((f, i) => f ? i : null).filter(i => i !== null);
+  const total   = indices.length;
+  if (total < 1) return;
+
+  const btn      = document.getElementById('preview-bg-all-btn');
+  const wrap     = document.getElementById('preview-all-progress-wrap');
+  const label    = document.getElementById('preview-all-progress-label');
+  const fileSpan = document.getElementById('preview-all-progress-file');
+  const bar      = document.getElementById('preview-all-progress-bar');
+
+  btn.disabled   = true;
+  btn.textContent = '⏳ Processing…';
+  wrap.style.display = 'block';
+
+  const origIdx = selectedIdx; // remember where user started
+
+  // Snapshot every image's layout state before we start switching.
+  // selectImage() calls saveCurrentSettings() on the outgoing image, which
+  // stamps the current live imgX/Y/W/H (from whatever image is displayed) into
+  // that image's settings. Without this guard, cropping or panning on one image
+  // bleeds into every other image as the batch loop switches between them.
+  const layoutSnapshots = indices.map(i => {
+    const s = imageSettings[i];
+    if (!s) return null;
+    return {
+      _imgX: s._imgX, _imgY: s._imgY,
+      _imgW: s._imgW, _imgH: s._imgH,
+      _canvasW: s._canvasW, _canvasH: s._canvasH,
+    };
+  });
+
+  for (let n = 0; n < total; n++) {
+    const i = indices[n];
+    label.textContent    = `${n + 1} / ${total}`;
+    fileSpan.textContent = fileList[i] ? fileList[i].name : '';
+    bar.style.width      = `${Math.round(((n) / total) * 100)}%`;
+
+    // Switch to this image so runBgPreview uses the right context
+    selectImage(i);
+    // Small yield so the UI can repaint before the heavy AI work
+    await new Promise(r => setTimeout(r, 30));
+
+    if (!bgRemovedCache[i]) {
+      await runBgPreview();
+    } else {
+      // Already cached — just activate the preview
+      bgPreviewSet.add(i);
+      drawBgPreview(i);
+      updatePreviewBgBtn();
+    }
+
+    // Restore this image's original layout — selectImage() may have overwritten
+    // it with the outgoing image's live pan/zoom/crop state.
+    const snap = layoutSnapshots[n];
+    if (imageSettings[i]) {
+      if (snap && snap._imgW) {
+        // Had a real layout before — restore it exactly
+        imageSettings[i]._imgX    = snap._imgX;
+        imageSettings[i]._imgY    = snap._imgY;
+        imageSettings[i]._imgW    = snap._imgW;
+        imageSettings[i]._imgH    = snap._imgH;
+        imageSettings[i]._canvasW = snap._canvasW;
+        imageSettings[i]._canvasH = snap._canvasH;
+      } else {
+        // Had no layout before — clear any that got stamped in
+        delete imageSettings[i]._imgX;
+        delete imageSettings[i]._imgY;
+        delete imageSettings[i]._imgW;
+        delete imageSettings[i]._imgH;
+        delete imageSettings[i]._canvasW;
+        delete imageSettings[i]._canvasH;
+      }
+    }
+  }
+
+  bar.style.width = '100%';
+  label.textContent = `${total} / ${total}`;
+
+  // Return to the image the user was on
+  selectImage(origIdx);
+
+  setTimeout(() => {
+    wrap.style.display   = 'none';
+    bar.style.width      = '0%';
+    btn.disabled         = false;
+    btn.textContent      = '◎ Preview BG on all images';
+  }, 1200);
+
+  setStatus(`BG preview applied to all ${total} image${total !== 1 ? 's' : ''} ✓`, 'ok');
+}
+
+function drawBgPreview(idx) {
+  const bm = bgRemovedCache[idx];
+  if (!bm) return;
+  if (!imgW || !imgH) return;
+
+  const rot     = ((currentRotation % 360) + 360) % 360;
+  const swapped = rot === 90 || rot === 270;
+
+  const cw = canvasW || naturalW;
+  const ch = canvasH || naturalH;
+  previewCanvas.width  = Math.round(cw * dispScale);
+  previewCanvas.height = Math.round(ch * dispScale);
+
+  const ctx = pCtx;
+
+  // ── Background fill ──
+  if (bgColour && bgColour !== 'none') {
+    ctx.fillStyle = bgColour;
+    ctx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+  } else {
+    const sz = 12;
+    for (let y = 0; y < previewCanvas.height; y += sz)
+      for (let x = 0; x < previewCanvas.width; x += sz) {
+        ctx.fillStyle = (Math.floor(x/sz) + Math.floor(y/sz)) % 2 === 0 ? '#cccccc' : '#ffffff';
+        ctx.fillRect(x, y, sz, sz);
+      }
+  }
+
+  const dx = Math.round(imgX * dispScale);
+  const dy = Math.round(imgY * dispScale);
+  const dw = Math.round(imgW * dispScale);
+  const dh = Math.round(imgH * dispScale);
+
+  // ── Tone adjustments for BG preview ──
+  // Apply processPixels (the same pixel-exact path used for saving) to the
+  // drawSource so the BG preview is visually identical to the normal preview.
+  const s = imageSettings[idx] || {};
+  const toneParams = {
+    brightness: s.brightness || 0,
+    contrast:   s.contrast   || 0,
+    colour:     s.colour     || 0,
+    warmth:     s.warmth     || 0,
+    highlights: s.highlights || 0,
+    shadows:    s.shadows    || 0,
+    sharpness:  0,   // sharpness already baked into drawSource via bgDrawCache
+    red: 0, green: 0, blue: 0, thresh: 0,
+  };
+  const needsTone = toneParams.brightness !== 0 || toneParams.contrast !== 0 || toneParams.colour !== 0 || toneParams.warmth !== 0 || toneParams.highlights !== 0 || toneParams.shadows !== 0;
+
+  // ── Sharpness + rotation draw-cache ──
+  // The cache is an offscreen canvas at the bitmap's natural (unrotated) pixel size
+  // with the sharpness kernel already applied and the image rotated into its final
+  // orientation.  It is rebuilt only when sharpness or rotation changes — NOT on
+  // every pan / zoom frame, which is the expensive path we want to avoid.
+  const sharpness = s.sharpness || 0;
+  const cached    = bgDrawCache[idx];
+  const needRebuild = !cached
+    || cached.sharpness  !== sharpness
+    || cached.rotation   !== rot
+    || (cached.straighten || 0) !== currentStraighten;
+
+  if (needRebuild) {
+    // Pre-rotation source size (bitmap is always stored unrotated)
+    const srcW = bm.width;
+    const srcH = bm.height;
+    // Post-rotation canvas size
+    const outW = swapped ? srcH : srcW;
+    const outH = swapped ? srcW : srcH;
+
+    const oc    = document.createElement('canvas');
+    oc.width    = outW;
+    oc.height   = outH;
+    const octx  = oc.getContext('2d');
+
+    if (rot === 0 && !currentStraighten) {
+      octx.drawImage(bm, 0, 0);
+    } else {
+      octx.save();
+      octx.translate(outW / 2, outH / 2);
+      octx.rotate(rot * Math.PI / 180);
+      if (currentStraighten) octx.rotate(currentStraighten * Math.PI / 180);
+      octx.drawImage(bm, -srcW / 2, -srcH / 2, srcW, srcH);
+      octx.restore();
+    }
+    if (sharpness !== 0) applySharpness(octx, outW, outH, sharpness);
+
+    bgDrawCache[idx] = { canvas: oc, sharpness, rotation: rot, straighten: currentStraighten };
+  }
+
+  const drawSource = bgDrawCache[idx].canvas;
+
+  // ── Apply tone adjustments via processPixels (pixel-exact match to saved output) ──
+  // Draw drawSource into a temp canvas at its natural size, run processPixels,
+  // then use that toned canvas for both shadow and subject stamp.
+  let tonedSource = drawSource;
+  if (needsTone) {
+    const tc   = document.createElement('canvas');
+    tc.width   = drawSource.width;
+    tc.height  = drawSource.height;
+    const tctx = tc.getContext('2d');
+    tctx.drawImage(drawSource, 0, 0);
+    let id = tctx.getImageData(0, 0, tc.width, tc.height);
+    id = processPixels(id, toneParams);
+    tctx.putImageData(id, 0, 0);
+    tonedSource = tc;
+  }
+
+  // ── Shadow (drawn from the toned source) ──
+  drawShadow(ctx, tonedSource, dx, dy, dw, dh);
+
+  // ── Subject stamp — no CSS filter needed, tone already baked in ──
+  ctx.drawImage(tonedSource, dx, dy, dw, dh);
+
+  // Canvas border
+  ctx.strokeStyle = 'rgba(200,240,96,0.25)';
+  ctx.setLineDash([4, 4]);
+  ctx.strokeRect(0.5, 0.5, previewCanvas.width - 1, previewCanvas.height - 1);
+  ctx.setLineDash([]);
+
+  document.getElementById('bg-preview-badge').style.display = 'block';
+  document.getElementById('dims-badge').textContent = `${cw} × ${ch} px`;
+  fitWrapToPane();
+}
+
+// Unified redraw — routes to BG preview or normal compose
+function redraw() {
+  if (bgPreviewSet.has(selectedIdx) && bgRemovedCache[selectedIdx]) {
+    drawBgPreview(selectedIdx);
+  } else {
+    drawCompose();
+  }
+}
+
+function clearBgPreview() {
+  bgPreviewSet.delete(selectedIdx);
+  document.getElementById('bg-preview-badge').style.display = 'none';
+  updatePreviewBgBtn();
+  drawCompose();
+  setStatus('Back to original preview.', 'ok');
+}
+
+// Clear preview cache when image settings change (so preview stays fresh)
+// Pass silent=true when you intend to re-run the preview immediately after —
+// this avoids the flicker of dropping back to normal compose view.
+function invalidateBgPreviewCache(idx, silent = false) {
+  // Clear cached BG removal bitmap and the derived draw cache for this image
+  if (bgRemovedCache[idx]) {
+    bgRemovedCache[idx].close?.();
+    delete bgRemovedCache[idx];
+  }
+  if (bgDrawCache[idx]) delete bgDrawCache[idx];
+  if (bgPreviewSet.has(idx)) {
+    bgPreviewSet.delete(idx);
+    if (!silent && idx === selectedIdx) {
+      document.getElementById('bg-preview-badge').style.display = 'none';
+      updatePreviewBgBtn();
+      drawCompose();
+    }
+  }
+}
+
+// ── Shadow controls ──
+// ── Shadow dial ──────────────────────────────────────────────────────────────
+// The dial is a canvas that shows a ring with a dot indicating shadow direction.
+// 0° = shadow falls upward, 90° = right, 180° = down (default), 270° = left.
+// Dragging anywhere on the canvas updates the angle from the canvas centre.
+
+function drawShadowDial() {
+  const canvas = document.getElementById('shadow-dial');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const cx = W / 2, cy = H / 2;
+  const outerR = W / 2 - 2;
+  const ringW  = 12;
+  const innerR = outerR - ringW;
+  const dotR   = 6;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Background circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
+  ctx.fillStyle = '#1e1e1e';
+  ctx.fill();
+  ctx.strokeStyle = '#363636';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  if (shadowEnabled) {
+    // Coloured ring
+    const grad = ctx.createConicGradient(0, cx, cy);
+    grad.addColorStop(0,    'rgba(200,240,96,0.15)');
+    grad.addColorStop(0.5,  'rgba(200,240,96,0.35)');
+    grad.addColorStop(1,    'rgba(200,240,96,0.15)');
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerR - 1, 0, Math.PI * 2);
+    ctx.arc(cx, cy, innerR + 1, 0, Math.PI * 2, true);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Direction dot on the ring
+    // angleDeg: 0=up, 90=right, so convert to canvas angle (0=right)
+    const rad = (shadowAngleDeg - 90) * Math.PI / 180;
+    const dotDist = innerR + ringW / 2;
+    const dx = cx + Math.cos(rad) * dotDist;
+    const dy = cy + Math.sin(rad) * dotDist;
+    ctx.beginPath();
+    ctx.arc(dx, dy, dotR, 0, Math.PI * 2);
+    ctx.fillStyle = '#c8f060';
+    ctx.fill();
+
+    // Arrow from centre pointing in shadow direction
+    const arrowLen = innerR - 8;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(rad) * arrowLen, cy + Math.sin(rad) * arrowLen);
+    ctx.strokeStyle = 'rgba(200,240,96,0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  } else {
+    // OFF state — muted ring + "OFF" text
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerR - 1, 0, Math.PI * 2);
+    ctx.arc(cx, cy, innerR + 1, 0, Math.PI * 2, true);
+    ctx.fillStyle = '#252525';
+    ctx.fill();
+    ctx.font = 'bold 11px DM Mono, monospace';
+    ctx.fillStyle = '#5a5a5a';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('OFF', cx, cy);
+  }
+}
+
+function updateShadowDialReadout() {
+  const btn = document.getElementById('shadow-off-btn');
+  if (!btn) return;
+  if (shadowEnabled) {
+    btn.textContent = '● Active';
+    btn.style.borderColor = 'var(--accent)';
+    btn.style.color = 'var(--accent)';
+    btn.style.background = 'var(--accent2)';
+  } else {
+    btn.textContent = '○ Disabled';
+    btn.style.borderColor = 'var(--border2)';
+    btn.style.color = 'var(--muted2)';
+    btn.style.background = 'var(--surface3)';
+  }
+  // Keep shadowDirection in sync for applyBgShadowToAll serialisation
+  shadowDirection = shadowEnabled ? 'angle' : 'none';
+}
+
+function toggleShadowOff() {
+  shadowEnabled = !shadowEnabled;
+  shadowDirection = shadowEnabled ? 'angle' : 'none';
+  // Persist the per-image override immediately so switching away and back preserves it
+  if (imageSettings[selectedIdx]) imageSettings[selectedIdx].shadowEnabled = shadowEnabled;
+  updateShadowDialReadout();
+  // Defer dial redraw one tick so the panel is visible and canvas has layout dims
+  setTimeout(() => { drawShadowDial(); }, 0);
+  if (bgPreviewSet.has(selectedIdx) && bgRemovedCache[selectedIdx]) drawBgPreview(selectedIdx);
+  else redraw();
+}
+
+// Dial pointer interaction
+(function initShadowDial() {
+  let _dialDragging = false;
+
+  function angleFromEvent(canvas, e) {
+    const r = canvas.getBoundingClientRect();
+    const cx = r.left + r.width  / 2;
+    const cy = r.top  + r.height / 2;
+    const dx = (e.clientX || (e.touches && e.touches[0].clientX)) - cx;
+    const dy = (e.clientY || (e.touches && e.touches[0].clientY)) - cy;
+    // atan2 gives angle from right (0) going clockwise.
+    // We want 0 = up, 90 = right, so add 90°.
+    let deg = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+    if (deg < 0) deg += 360;
+    return deg;
+  }
+
+  function applyDialAngle(canvas, e) {
+    shadowAngleDeg = angleFromEvent(canvas, e);
+    shadowEnabled  = true;
+    shadowDirection = 'angle';
+    updateShadowDialReadout();
+    drawShadowDial();
+    if (bgPreviewSet.has(selectedIdx) && bgRemovedCache[selectedIdx]) drawBgPreview(selectedIdx);
+  }
+
+  // Script runs at end of <body> so DOM is already parsed — init immediately,
+  // but defer one tick so the canvas is laid out and visible.
+  setTimeout(() => {
+    const canvas = document.getElementById('shadow-dial');
+    if (!canvas) return;
+    canvas.addEventListener('mousedown', e => {
+      _dialDragging = true;
+      applyDialAngle(canvas, e);
+    });
+    window.addEventListener('mousemove', e => {
+      if (_dialDragging) applyDialAngle(canvas, e);
+    });
+    window.addEventListener('mouseup', () => { _dialDragging = false; });
+    canvas.addEventListener('touchstart', e => { e.preventDefault(); _dialDragging = true; applyDialAngle(canvas, e); }, { passive: false });
+    window.addEventListener('touchmove',  e => { if (_dialDragging) { e.preventDefault(); applyDialAngle(canvas, e); } }, { passive: false });
+    window.addEventListener('touchend',   () => { _dialDragging = false; });
+    drawShadowDial();
+    updateShadowDialReadout();
+  });
+})();
+// ─────────────────────────────────────────────────────────────────────────────
+
+function setShadowDir(btn) {
+  // Legacy compat — no longer called, kept in case of external refs
+}
+
+function onShadowSlider(which, val) {
+  const v = parseInt(val);
+  if (which === 'strength') {
+    shadowStrength = v;
+    document.getElementById('shadow-strength-val').textContent = v + '%';
+  } else if (which === 'softness') {
+    shadowSoftness = v;
+    document.getElementById('shadow-softness-val').textContent = v + '%';
+  } else if (which === 'spread') {
+    shadowSpread = v;
+    shadowLength = v;   // spread drives the length axis
+    document.getElementById('shadow-spread-val').textContent = v + '%';
+  } else if (which === 'width') {
+    shadowWidth = v;
+    document.getElementById('shadow-width-val').textContent = v + '%';
+  } else if (which === 'distance') {
+    shadowDistance = v;
+    document.getElementById('shadow-distance-val').textContent = v + '%';
+  }
+  if (bgPreviewSet.has(selectedIdx) && bgRemovedCache[selectedIdx]) drawBgPreview(selectedIdx);
+}
+
+// ── Shadow renderer ──
+function drawShadow(ctx, bm, x, y, w, h) {
+  if (!shadowEnabled || shadowStrength === 0) return;
+
+  // Convert dial angle to direction vector.
+  // shadowAngleDeg: 0=up, 90=right, 180=down, 270=left
+  // Canvas convention: 0=right for cos/sin, so subtract 90°.
+  const rad = (shadowAngleDeg - 90) * Math.PI / 180;
+  const vx  = Math.cos(rad);
+  const vy  = Math.sin(rad);
+
+  const size       = Math.min(w, h);
+  // Distance: how far the shadow shifts from the object (0–100 → 0–40% of size)
+  const offsetDist = (shadowDistance / 100) * size * 0.40;
+  const blurPx     = Math.max(1, (shadowSoftness / 100) * size * 0.18);
+  const opacity    = (shadowStrength / 100) * 0.80;
+
+  // ── Add shadow ──
+  // Build silhouette, scale it around the subject centre, offset by distance.
+  const cw = ctx.canvas.width;
+  const ch = ctx.canvas.height;
+
+  // Draw subject silhouette into a full-canvas temp
+  const sc   = document.createElement('canvas');
+  sc.width   = cw;
+  sc.height  = ch;
+  const sctx = sc.getContext('2d');
+  sctx.drawImage(bm, x, y, w, h);
+  sctx.globalCompositeOperation = 'source-in';
+  sctx.fillStyle = '#000';
+  sctx.fillRect(0, 0, cw, ch);
+
+  // Scale the silhouette around the subject centre.
+  // IMPORTANT: sctx still has globalCompositeOperation='source-in' set.
+  // Drawing back onto sctx with clearRect+drawImage would erase everything
+  // because source-in on an empty canvas produces nothing.
+  // Solution: always draw the final shadow from a fresh canvas with default composite.
+  const draw = document.createElement('canvas');
+  draw.width  = cw;
+  draw.height = ch;
+  const dctx  = draw.getContext('2d');  // fresh ctx, globalCompositeOperation = 'source-over'
+
+  const subCX = x + w / 2;
+  const subCY = y + h / 2;
+
+  // Width & Length: scale the shadow independently on each axis relative to
+  // the shadow direction.  We rotate into the "shadow frame" (perp → X, dir → Y),
+  // apply scaleX = shadowWidth/100 and scaleY = shadowLength/100, then rotate back.
+  const widthScale  = shadowWidth  / 100;   // perpendicular axis
+  const lengthScale = shadowLength / 100;   // along shadow direction
+
+  const vLen = Math.sqrt(vx * vx + vy * vy) || 1;
+  const ndx  = vx / vLen;   // normalised direction
+  const ndy  = vy / vLen;
+  // Rotation matrix that maps (ndx,ndy) → (0,1) and perp → (1,0):
+  //   R  = | ndy   ndx |
+  //        | -ndx  ndy |
+  // R⁻¹ = | ndy  -ndx |
+  //        | ndx   ndy |
+
+  dctx.save();
+  dctx.translate(subCX, subCY);
+  dctx.transform( ndy, -ndx,  ndx, ndy, 0, 0);   // rotate into shadow frame
+  dctx.scale(widthScale, lengthScale);             // independent X (width) and Y (length)
+  dctx.transform( ndy,  ndx, -ndx, ndy, 0, 0);   // rotate back
+  dctx.translate(-subCX, -subCY);
+  dctx.drawImage(sc, 0, 0);
+  dctx.restore();
+
+  // Apply blur + offset into a third canvas
+  const blurred = document.createElement('canvas');
+  blurred.width  = cw;
+  blurred.height = ch;
+  const bctx = blurred.getContext('2d');
+  bctx.globalAlpha = opacity;
+  if (blurPx > 0.5) bctx.filter = `blur(${blurPx.toFixed(1)}px)`;
+  bctx.drawImage(draw, vx * offsetDist, vy * offsetDist);
+  bctx.filter = 'none';
+  bctx.globalAlpha = 1;
+
+  // Now punch the subject's silhouette out of the blurred+offset shadow
+  // so it can never appear on top of the object
+  bctx.globalCompositeOperation = 'destination-out';
+  bctx.drawImage(bm, x, y, w, h);
+
+  // Stamp the clean shadow onto the main canvas
+  ctx.save();
+  ctx.drawImage(blurred, 0, 0);
+  ctx.restore();
+
+}
+
+let _removeBg = null;
+let _modelLoaded = false;
+
+async function getRemoveBgFn() {
+  if (_removeBg) return _removeBg;
+  const mod = await import('https://esm.sh/@imgly/background-removal@1.4.5');
+  _removeBg = mod.default || mod.removeBackground || mod.imglyRemoveBackground;
+  if (typeof _removeBg !== 'function') {
+    _removeBg = Object.values(mod).find(v => typeof v === 'function');
+  }
+  if (!_removeBg) throw new Error('Could not find removeBackground in module exports.');
+  return _removeBg;
+}
+
+async function removeBgFromBlob(blob, countOpts = {}) {
+  showBgOverlay(true, countOpts);
+  try {
+    if (!_removeBg) {
+      document.getElementById('bg-overlay-sub').textContent = 'Loading AI library…';
+    }
+    const removeBg = await getRemoveBgFn();
+
+    if (!_modelLoaded) {
+      document.getElementById('bg-overlay-sub').textContent = 'First run: downloading ~40 MB AI model…';
+    } else {
+      document.getElementById('bg-overlay-sub').textContent = 'Processing…';
+    }
+
+    const resultBlob = await removeBg(blob, {
+      proxyToWorker: false,
+      output: { format: 'image/png', quality: 1.0 },
+      progress: (key, current, total) => {
+        if (total > 0) {
+          const pct = Math.round((current / total) * 100);
+          const label = _modelLoaded ? 'Processing' : key;
+          document.getElementById('bg-overlay-sub').textContent = `${label} … ${pct}%`;
+          // Update the overlay progress bar to show within-image progress
+          const bar = document.getElementById('bg-overlay-bar');
+          if (bar && countOpts.total > 1) {
+            const baseProgress = ((countOpts.current - 1) / countOpts.total) * 100;
+            const segmentSize  = (1 / countOpts.total) * 100;
+            bar.style.width = (baseProgress + segmentSize * (pct / 100)).toFixed(1) + '%';
+          }
+        }
+      }
+    });
+
+    _modelLoaded = true;
+    return resultBlob;
+  } finally {
+    showBgOverlay(false);
+  }
+}
+
+function showBgOverlay(show, opts = {}) {
+  document.getElementById('bg-overlay').classList.toggle('show', show);
+  if (show) { if (window._spinnerStart) window._spinnerStart(); }
+  else       { if (window._spinnerStop)  window._spinnerStop(); }
+  const countEl = document.getElementById('bg-overlay-count');
+  const barWrap  = document.getElementById('bg-overlay-bar-wrap');
+  const bar      = document.getElementById('bg-overlay-bar');
+  if (!show) {
+    document.getElementById('bg-overlay-sub').textContent = '';
+    countEl.style.display = 'none';
+    barWrap.style.display = 'none';
+    bar.style.width = '0%';
+    return;
+  }
+  // Show count pill if provided (batch mode)
+  if (opts.current !== undefined && opts.total !== undefined) {
+    countEl.textContent = `Image ${opts.current} of ${opts.total}`;
+    countEl.style.display = 'block';
+    barWrap.style.display = 'block';
+    bar.style.width = Math.round(((opts.current - 1) / opts.total) * 100) + '%';
+    document.getElementById('bg-overlay-title').textContent =
+      opts.total > 1 ? `Removing background… (${opts.current}/${opts.total})` : 'Removing background…';
+  } else {
+    countEl.style.display = 'none';
+    barWrap.style.display = 'none';
+    document.getElementById('bg-overlay-title').textContent = 'Removing background…';
+  }
+}
+
+// ── Core per-image save logic ──
+async function processAndSaveImage(idx, p, countOpts = {}) {
+  const originalSrc = originals[idx];
+  const fileObj     = fileList[idx];
+  if (!originalSrc || !fileObj) return;
+
+  // Use this image's own settings if available (for Save All), else use passed-in params
+  const s = imageSettings[idx] || {};
+  const imgP = {
+    brightness: s.brightness !== undefined ? s.brightness : p.brightness,
+    contrast:   s.contrast   !== undefined ? s.contrast   : p.contrast,
+    sharpness:  s.sharpness  !== undefined ? s.sharpness  : p.sharpness,
+    colour:     s.colour     !== undefined ? s.colour     : p.colour,
+    rotation:   s.rotation   !== undefined ? s.rotation   : (p.rotation || 0),
+    red: 0, green: 0, blue: 0, thresh: 0,
+  };
+
+  // Get natural dims for this image (account for rotation)
+  const dims = await new Promise(res => {
+    const tmp = new Image();
+    tmp.onload = () => {
+      const rot = (imgP.rotation || 0) % 360;
+      const sw = rot === 90 || rot === 270;
+      res({ w: sw ? tmp.naturalHeight : tmp.naturalWidth, h: sw ? tmp.naturalWidth : tmp.naturalHeight });
+    };
+    tmp.src = originalSrc;
+  });
+
+  const fullSrc = await renderToCanvas(wCtx, originalSrc, imgP, dims.w, dims.h);
+
+  // Output dimensions — use each image's own saved canvas frame if available,
+  // otherwise fall back to the image's natural dimensions.
+  // Never use the currently-selected image's global canvasW/H for other images.
+  const isSelected = (idx === selectedIdx);
+  let rawCw, rawCh, fx, fy, fw, fh;
+
+  if (isSelected) {
+    // Use live global state for the currently previewed image
+    rawCw = canvasW || dims.w;
+    rawCh = canvasH || dims.h;
+    fx = Math.round(imgX * exportScale);
+    fy = Math.round(imgY * exportScale);
+    fw = Math.round(imgW * exportScale);
+    fh = Math.round(imgH * exportScale);
+  } else {
+    // Use this image's own saved canvas/layout if it's been viewed, else natural dims
+    const saved = imageSettings[idx];
+    const hasSaved = saved && saved._imgW && saved._canvasW;
+    rawCw = hasSaved ? saved._canvasW : dims.w;
+    rawCh = hasSaved ? saved._canvasH : dims.h;
+    if (hasSaved) {
+      fx = Math.round(saved._imgX * exportScale);
+      fy = Math.round(saved._imgY * exportScale);
+      fw = Math.round(saved._imgW * exportScale);
+      fh = Math.round(saved._imgH * exportScale);
+    } else {
+      // Natural centred fit
+      const scale = Math.min(rawCw / dims.w, rawCh / dims.h);
+      fw = Math.round(dims.w * scale * exportScale);
+      fh = Math.round(dims.h * scale * exportScale);
+      fx = Math.round(((rawCw - dims.w * scale) / 2) * exportScale);
+      fy = Math.round(((rawCh - dims.h * scale) / 2) * exportScale);
+    }
+  }
+
+  const cw = Math.max(1, Math.round(rawCw * exportScale));
+  const ch = Math.max(1, Math.round(rawCh * exportScale));
+
+  return new Promise((resolve, reject) => {
+    const fc   = document.createElement('canvas');
+    fc.width   = cw; fc.height = ch;
+    const fctx = fc.getContext('2d');
+    fctx.fillStyle = '#ffffff';
+    fctx.fillRect(0, 0, cw, ch);
+
+    const img = new Image();
+    img.onload = async () => {
+      fctx.drawImage(img, fx, fy, fw, fh);
+      const baseName = fileObj.name.replace(/\.[^.]+$/, '') + '_processed';
+
+      try {
+        if (bgRemoveEnabled) {
+          // ── Build the subject source ──
+          // If BG preview was already run, reuse the cached bitmap — no AI re-run needed.
+          // The cache is neutral (no rotation, no tone) so we apply both below, exactly
+          // mirroring drawBgPreview so save output matches what the preview shows.
+          let drawSource;
+          if (bgRemovedCache[idx]) {
+            const bm = bgRemovedCache[idx];
+            const rot     = ((imgP.rotation % 360) + 360) % 360;
+            const swapped = rot === 90 || rot === 270;
+            const srcW = bm.width, srcH = bm.height;
+            const outW = swapped ? srcH : srcW;
+            const outH = swapped ? srcW : srcH;
+            // Apply rotation + sharpness (mirrors bgDrawCache build in drawBgPreview)
+            const oc = document.createElement('canvas');
+            oc.width = outW; oc.height = outH;
+            const octx = oc.getContext('2d');
+            if (rot === 0) {
+              octx.drawImage(bm, 0, 0);
+            } else {
+              octx.save();
+              octx.translate(outW / 2, outH / 2);
+              octx.rotate(rot * Math.PI / 180);
+              octx.drawImage(bm, -srcW / 2, -srcH / 2, srcW, srcH);
+              octx.restore();
+            }
+            const sharpness = s.sharpness || 0;
+            if (sharpness !== 0) applySharpness(octx, outW, outH, sharpness);
+            // Apply tone adjustments (mirrors processPixels path in drawBgPreview)
+            const toneParams = {
+              brightness: s.brightness || 0, contrast:   s.contrast   || 0,
+              colour:     s.colour     || 0, warmth:     s.warmth     || 0,
+              highlights: s.highlights || 0, shadows:    s.shadows    || 0,
+              sharpness: 0, red: 0, green: 0, blue: 0, thresh: 0,
+            };
+            const needsTone = toneParams.brightness || toneParams.contrast || toneParams.colour ||
+                              toneParams.warmth || toneParams.highlights || toneParams.shadows;
+            if (needsTone) {
+              let id = octx.getImageData(0, 0, outW, outH);
+              id = processPixels(id, toneParams);
+              octx.putImageData(id, 0, 0);
+            }
+            drawSource = oc;
+          } else {
+            // No preview cache — run BG removal on the image at natural size, rendered
+            // directly from the original source with tone adjustments, no white fill.
+            const neutralParams = {
+              brightness: s.brightness !== undefined ? s.brightness : (p.brightness || 0),
+              contrast:   s.contrast   !== undefined ? s.contrast   : (p.contrast   || 0),
+              sharpness:  s.sharpness  !== undefined ? s.sharpness  : (p.sharpness  || 0),
+              colour:     s.colour     !== undefined ? s.colour     : (p.colour     || 0),
+              warmth:     s.warmth     !== undefined ? s.warmth     : (p.warmth     || 0),
+              highlights: s.highlights !== undefined ? s.highlights : (p.highlights || 0),
+              shadows:    s.shadows    !== undefined ? s.shadows    : (p.shadows    || 0),
+              rotation:   imgP.rotation || 0,
+              red: 0, green: 0, blue: 0, thresh: 0,
+            };
+            const naturalSrc = await renderToCanvas(
+              document.createElement('canvas').getContext('2d'),
+              originals[idx], neutralParams, dims.w, dims.h
+            );
+            const tmpNat = new Image();
+            await new Promise(r => { tmpNat.onload = r; tmpNat.src = naturalSrc; });
+            const naturalCanvas = document.createElement('canvas');
+            naturalCanvas.width = dims.w; naturalCanvas.height = dims.h;
+            naturalCanvas.getContext('2d').drawImage(tmpNat, 0, 0);
+            const noBgBlob = await removeBgFromBlob(
+              await new Promise(r => naturalCanvas.toBlob(r, 'image/png')), countOpts
+            );
+            // Crop to subject bounding box if enabled
+            let croppedBlob = noBgBlob;
+            if (cropToContentEnabled) {
+              const padding = parseInt(document.getElementById('crop-padding-range').value) || 20;
+              croppedBlob = await cropToContent(noBgBlob, Math.round(padding * exportScale));
+            }
+            const tmpBm = await createImageBitmap(croppedBlob);
+            const dc = document.createElement('canvas');
+            dc.width = tmpBm.width; dc.height = tmpBm.height;
+            dc.getContext('2d').drawImage(tmpBm, 0, 0);
+            tmpBm.close?.();
+            drawSource = dc;
+          }
+
+          // ── Composite onto the output frame ──
+          // Use fx/fy/fw/fh (already scaled by exportScale) to position the subject
+          // within the cw×ch output frame — preserves square/landscape/portrait canvas.
+          // drawSource is at dims.w × dims.h (rotated natural size), so we scale
+          // fw/fh proportionally to drawSource's actual pixel dimensions.
+          const dsScaleX = drawSource.width  / dims.w;
+          const dsScaleY = drawSource.height / dims.h;
+          const sfx = Math.round(fx * dsScaleX);
+          const sfy = Math.round(fy * dsScaleY);
+          const sfw = Math.round(fw * dsScaleX);
+          const sfh = Math.round(fh * dsScaleY);
+          const outCw = Math.round(cw * dsScaleX);
+          const outCh = Math.round(ch * dsScaleY);
+
+          if (bgColour === 'none') {
+            const name = baseName + '_nobg.png';
+            const cc = document.createElement('canvas');
+            cc.width = outCw; cc.height = outCh;
+            const cctx = cc.getContext('2d');
+            drawShadow(cctx, drawSource, sfx, sfy, sfw, sfh);
+            cctx.drawImage(drawSource, sfx, sfy, sfw, sfh);
+            const b = await new Promise(r => cc.toBlob(r, 'image/png'));
+            await saveBlob(b, name);
+            resolve(name);
+          } else {
+            const cc = document.createElement('canvas');
+            cc.width = outCw; cc.height = outCh;
+            const cctx = cc.getContext('2d');
+            cctx.fillStyle = bgColour;
+            cctx.fillRect(0, 0, outCw, outCh);
+            drawShadow(cctx, drawSource, sfx, sfy, sfw, sfh);
+            cctx.drawImage(drawSource, sfx, sfy, sfw, sfh);
+            const name = baseName + '_bg.jpg';
+            const b = await new Promise(r => cc.toBlob(r, 'image/jpeg', 0.95));
+            await saveBlob(b, name);
+            resolve(name);
+          }
+        } else {
+          const name = baseName + '.jpg';
+          const blob = await new Promise(r => fc.toBlob(r, 'image/jpeg', 0.95));
+          await saveBlob(blob, name);
+          resolve(name);
+        }
+      } catch (err) {
+        reject(err);
+      }
+    };
+    img.src = fullSrc;
+  });
+}
+
+// ── Saved toast overlay on the preview canvas ──
+function showSavedToast() {
+  const wrap = document.getElementById('compose-wrap');
+  if (!wrap) return;
+  const existing = document.getElementById('saved-toast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.id = 'saved-toast';
+  toast.textContent = '✓ Saved';
+  toast.style.cssText = [
+    'position:absolute', 'top:50%', 'left:50%',
+    'transform:translate(-50%,-50%)',
+    'background:rgba(200,240,96,0.92)', 'color:#0a0a0a',
+    'font-family:var(--mono)', 'font-size:18px', 'font-weight:600',
+    'padding:14px 32px', 'border-radius:8px',
+    'pointer-events:none', 'z-index:50',
+    'opacity:1', 'transition:opacity 0.5s ease',
+    'letter-spacing:0.06em',
+  ].join(';');
+  wrap.appendChild(toast);
+  // Fade out after 1.5s and remove
+  setTimeout(() => { toast.style.opacity = '0'; }, 1500);
+  setTimeout(() => { toast.remove(); }, 2100);
+}
+
+// ── Save current image only ──
+async function saveCurrent() {
+  if (!originals[selectedIdx]) { setStatus('Open a photo first.', 'err'); return; }
+  setStatus('Processing…');
+  const p = getParams();
+  if (!naturalW) await loadNaturalDims(originals[selectedIdx]);
+  try {
+    const name = await processAndSaveImage(selectedIdx, p, { current: 1, total: 1 });
+    markSaved(selectedIdx);
+    showSavedToast();
+    const suffix = bgRemoveEnabled ? (bgColour === 'none' ? ' — transparent' : ` — bg: ${bgColour}`) : '';
+    const folder = sessionDirHandle ? `  →  📁 ${sessionDirHandle.name}` : '';
+    setStatus(`Saved: ${name}${suffix}${folder}`, 'ok');
+  } catch (err) {
+    console.error('Save error:', err);
+    setStatus(`Save failed: ${err.message}`, 'err');
+    showBgOverlay(false);
+  }
+}
+
+// ── Save all loaded images sequentially ──
+async function saveAll() {
+  const indices = fileList.map((f, i) => f ? i : -1).filter(i => i >= 0);
+  const total = indices.length;
+  if (total === 0) { setStatus('No images loaded.', 'err'); return; }
+
+  const p = getParams();
+  if (!naturalW) await loadNaturalDims(originals[selectedIdx]);
+
+  // Show progress bar, hide status text content
+  const wrap = document.getElementById('save-progress-wrap');
+  const bar  = document.getElementById('save-progress-bar');
+  const lbl  = document.getElementById('save-progress-label');
+  const file = document.getElementById('save-progress-file');
+  wrap.style.display = 'block';
+  bar.style.width = '0%';
+  bar.style.background = 'var(--accent)';
+  lbl.textContent = `0 / ${total}`;
+  file.textContent = '';
+  setStatus(`Saving ${total} image${total > 1 ? 's' : ''}…`);
+
+  // Disable save buttons during run
+  document.getElementById('save-all-btn').disabled = true;
+  document.getElementById('save-btn').disabled = true;
+
+  let ok = 0, fail = 0;
+  for (let n = 0; n < indices.length; n++) {
+    const i = indices[n];
+    const fname = fileList[i].name;
+    lbl.textContent = `${n + 1} / ${total}`;
+    file.textContent = fname.length > 22 ? '…' + fname.slice(-20) : fname;
+    bar.style.width = Math.round(((n) / total) * 100) + '%';
+    try {
+      await processAndSaveImage(i, p, { current: n + 1, total });
+      markSaved(i);
+      ok++;
+      await new Promise(r => setTimeout(r, 200));
+    } catch (err) {
+      console.error(`Failed on ${fname}:`, err);
+      fail++;
+    }
+    bar.style.width = Math.round(((n + 1) / total) * 100) + '%';
+  }
+
+  showBgOverlay(false);
+  document.getElementById('save-all-btn').disabled = false;
+  document.getElementById('save-btn').disabled = false;
+
+  if (fail > 0) bar.style.background = 'var(--red)';
+  lbl.textContent = `${ok} / ${total} saved${fail ? ` (${fail} failed)` : ''}`;
+  file.textContent = '';
+
+  const folder = sessionDirHandle ? `  →  📁 ${sessionDirHandle.name}` : '';
+  setStatus(`Done — ${ok} saved${fail ? `, ${fail} failed` : ''}${folder}`, ok > 0 ? 'ok' : 'err');
+
+  // Fade out progress bar after a moment
+  setTimeout(() => {
+    wrap.style.display = 'none';
+    bar.style.width = '0%';
+  }, 4000);
+}
+
+function setStatus(msg, type='') {
+  const cleanMsg = msg.replace(/\s*→\s*📁[^/]*\/\s*↗?/, '').trim();
+  document.getElementById('status-text').textContent = cleanMsg;
+  document.getElementById('statusbar').className = type || '';
+  const folderLink = document.getElementById('folder-link');
+  folderLink.style.display = 'none';
+}
+
+async function openSessionFolder() {
+  if (!sessionDirHandle) return;
+  // Browsers cannot open Finder/Explorer directly — show the path clearly instead
+  // Try to resolve the path via the FileSystem Access API
+  let pathHint = `Pictures → ${sessionDirHandle.name}`;
+  try {
+    // Some browsers expose getFile/resolve — use to show more context
+    if (window.__rootHandle) {
+      const rel = await window.__rootHandle.resolve(sessionDirHandle);
+      if (rel) pathHint = rel.join(' → ');
+    }
+  } catch(_) {}
+
+  // Show a small popover near the status bar
+  const existing = document.getElementById('folder-popover');
+  if (existing) { existing.remove(); return; }
+
+  const pop = document.createElement('div');
+  pop.id = 'folder-popover';
+  pop.style.cssText = `
+    position:fixed; bottom:40px; left:50%; transform:translateX(-50%);
+    background:var(--surface3); border:1px solid var(--accent);
+    border-radius:6px; padding:12px 16px; font-family:var(--mono);
+    font-size:10px; color:var(--fg); z-index:999; max-width:360px;
+    box-shadow:0 4px 20px rgba(0,0,0,.5); text-align:center; line-height:1.7;
+  `;
+  pop.innerHTML = `
+    <div style="color:var(--accent);font-size:9px;letter-spacing:.1em;margin-bottom:6px;">SAVE LOCATION</div>
+    <div style="color:var(--fg);margin-bottom:8px;">📁 <strong>${pathHint}</strong></div>
+    <div style="color:var(--muted);font-size:9px;margin-bottom:10px;">Open your Pictures folder and navigate to <strong>${sessionDirHandle.name}</strong></div>
+    <button onclick="navigator.clipboard.writeText('${sessionDirHandle.name}').then(()=>this.textContent='Copied!');setTimeout(()=>this.textContent='Copy folder name',1500)"
+      style="background:var(--surface2);border:1px solid var(--border2);border-radius:3px;color:var(--muted2);font-family:var(--mono);font-size:9px;padding:4px 10px;cursor:pointer;margin-right:6px;">
+      Copy folder name
+    </button>
+    <button onclick="document.getElementById('folder-popover').remove()"
+      style="background:var(--surface2);border:1px solid var(--border2);border-radius:3px;color:var(--muted2);font-family:var(--mono);font-size:9px;padding:4px 10px;cursor:pointer;">
+      Close
+    </button>
+  `;
+  document.body.appendChild(pop);
+  // Auto-dismiss after 8 seconds
+  setTimeout(() => pop.remove(), 8000);
+}
+
+// ── Session Management (IndexedDB persists directory handles) ──
+let sessionDirHandle = null;
+let sessionName = '';
+
+const DB_NAME = 'photo_editor_sessions', DB_VER = 1, DB_STORE = 'handles';
+function openDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e => e.target.result.createObjectStore(DB_STORE);
+    req.onsuccess = e => res(e.target.result);
+    req.onerror   = e => rej(e.target.error);
+  });
+}
+async function dbGet(key) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const req = db.transaction(DB_STORE).objectStore(DB_STORE).get(key);
+    req.onsuccess = e => res(e.target.result);
+    req.onerror   = e => rej(e.target.error);
+  });
+}
+async function dbSet(key, val) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const req = db.transaction(DB_STORE, 'readwrite').objectStore(DB_STORE).put(val, key);
+    req.onsuccess = () => res();
+    req.onerror   = e => rej(e.target.error);
+  });
+}
+
+function getLastSession() {
+  try { return JSON.parse(localStorage.getItem('photo_editor_last_session')); } catch { return null; }
+}
+function saveLastSession(name) {
+  localStorage.setItem('photo_editor_last_session', JSON.stringify({ name, date: new Date().toISOString() }));
+}
+
+async function showSessionModal() {
+  const existing = document.getElementById('session-modal');
+  if (existing) existing.remove();
+  const last = getLastSession();
+  const defaultName = 'session_' + new Date().toISOString().slice(0,10);
+
+  let storedHandle = null;
+  if (last) storedHandle = await dbGet('handle_' + last.name).catch(() => null);
+
+  // Build modal with DOM to avoid quoting hell
+  const overlay = document.createElement('div');
+  overlay.id = 'session-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;z-index:500;';
+
+  const box = document.createElement('div');
+  box.style.cssText = 'background:#161616;border:1px solid #2a2a2a;border-radius:8px;padding:28px 24px;width:380px;';
+
+  const mono = "'DM Mono',monospace";
+
+  function el(tag, css, html) {
+    const e = document.createElement(tag);
+    if (css) e.style.cssText = css;
+    if (html) e.innerHTML = html;
+    return e;
+  }
+  function label(css, html) { return el('label', css, html); }
+
+  // Title
+  box.appendChild(el('p', 'font-family:' + mono + ';font-size:9px;color:#c8f060;letter-spacing:.14em;text-transform:uppercase;margin-bottom:18px;', 'Session'));
+
+  // Radio group
+  const radioGroup = el('div', 'display:flex;flex-direction:column;gap:7px;margin-bottom:18px;');
+
+  // New session radio
+  const newLabel = label('display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:4px;border:1px solid #363636;cursor:pointer;background:#1e1e1e;');
+  const newRadio = document.createElement('input');
+  newRadio.type = 'radio'; newRadio.name = 'sm-choice'; newRadio.value = 'new'; newRadio.checked = true;
+  newRadio.style.cssText = 'accent-color:#c8f060;flex-shrink:0;';
+  const newSpan = el('span', 'font-family:' + mono + ';font-size:11px;color:#e4e4e4;', 'New session');
+  newLabel.appendChild(newRadio); newLabel.appendChild(newSpan);
+  radioGroup.appendChild(newLabel);
+
+  // Resume radio (if last session exists)
+  if (last) {
+    const resumeLabel = label('display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:4px;border:1px solid #363636;cursor:pointer;background:#1e1e1e;');
+    const resumeRadio = document.createElement('input');
+    resumeRadio.type = 'radio'; resumeRadio.name = 'sm-choice'; resumeRadio.value = 'resume';
+    resumeRadio.style.cssText = 'accent-color:#c8f060;flex-shrink:0;';
+    const resumeInfo = el('div', 'display:flex;flex-direction:column;gap:3px;');
+    const resumeName = el('span', 'font-family:' + mono + ';font-size:11px;color:#e4e4e4;');
+    resumeName.innerHTML = 'Resume: <strong style="color:#c8f060;">' + last.name + '</strong>';
+    const resumeSub = el('span', 'font-family:' + mono + ';font-size:9px;color:#5a5a5a;');
+    resumeSub.textContent = new Date(last.date).toLocaleString();
+    const tag = el('span', 'color:' + (storedHandle ? '#c8f060' : '#888') + ';', storedHandle ? ' · folder remembered ✓' : ' · folder picker required');
+    resumeSub.appendChild(tag);
+    resumeInfo.appendChild(resumeName); resumeInfo.appendChild(resumeSub);
+    resumeLabel.appendChild(resumeRadio); resumeLabel.appendChild(resumeInfo);
+    radioGroup.appendChild(resumeLabel);
+  }
+  box.appendChild(radioGroup);
+
+  // Session name input
+  const nameRow = el('div', 'margin-bottom:16px;');
+  nameRow.id = 'sm-name-row';
+  const nameLbl = el('label', 'font-family:' + mono + ';font-size:9px;color:#888;display:block;margin-bottom:6px;letter-spacing:.06em;', 'SESSION NAME');
+  const nameInput = document.createElement('input');
+  nameInput.id = 'sm-name'; nameInput.type = 'text'; nameInput.value = defaultName;
+  nameInput.placeholder = 'e.g. arduino_parts_batch';
+  nameInput.style.cssText = 'width:100%;background:#0f0f0f;border:1px solid #363636;border-radius:4px;color:#e4e4e4;font-family:' + mono + ';font-size:11px;padding:8px 10px;outline:none;box-sizing:border-box;';
+  nameRow.appendChild(nameLbl); nameRow.appendChild(nameInput);
+  box.appendChild(nameRow);
+
+  // Pick button
+  const pickBtn = el('button', 'width:100%;background:#c8f060;border:none;border-radius:4px;padding:10px;font-family:' + mono + ';font-size:11px;font-weight:500;cursor:pointer;color:#0a0a0a;letter-spacing:.04em;margin-bottom:10px;', '▶  Choose Photos folder & start');
+  box.appendChild(pickBtn);
+
+  // Cancel button (only when already in a session)
+  if (sessionDirHandle) {
+    const cancelBtn = el('button', 'width:100%;background:transparent;border:1px solid #2a2a2a;border-radius:4px;padding:8px;font-family:' + mono + ';font-size:10px;cursor:pointer;color:#888;margin-bottom:8px;', 'Cancel — keep current session');
+    cancelBtn.addEventListener('click', () => overlay.remove());
+    box.appendChild(cancelBtn);
+  }
+
+  // Footer note
+  box.appendChild(el('p', 'font-family:' + mono + ';font-size:9px;color:#5a5a5a;margin-top:6px;line-height:1.6;', 'Files save to <span style="color:#888;">Photos / [session name] /</span>'));
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  function updateUI() {
+    const isNew = newRadio.checked;
+    nameRow.style.opacity = isNew ? '1' : '0.5';
+    nameRow.style.pointerEvents = isNew ? '' : 'none';
+    if (!isNew && last) {
+      nameInput.value = last.name;
+      pickBtn.textContent = storedHandle ? '▶  Resume session' : '▶  Choose Photos folder & resume';
+    } else {
+      nameInput.value = defaultName;
+      pickBtn.textContent = '▶  Choose Photos folder & start';
+    }
+  }
+  overlay.querySelectorAll('input[type=radio]').forEach(r => r.addEventListener('change', updateUI));
+
+  pickBtn.addEventListener('click', async () => {
+    const isNew = newRadio.checked;
+    const rawName = nameInput.value.trim().replace(/[\/:*?"<>|]/g, '_');
+    const name = rawName || defaultName;
+    try {
+      let folderHandle;
+      if (!isNew && storedHandle) {
+        const perm = await storedHandle.requestPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') { setStatus('Permission denied.', 'err'); return; }
+        folderHandle = storedHandle;
+      } else {
+        const rootHandle = await window.showDirectoryPicker({ mode: 'readwrite', startIn: 'pictures' });
+        window.__rootHandle = rootHandle;
+        folderHandle = await rootHandle.getDirectoryHandle(name, { create: true });
+        await dbSet('handle_' + name, folderHandle);
+      }
+      sessionDirHandle = folderHandle;
+      sessionName = name;
+      saveLastSession(name);
+      document.getElementById('session-pill').textContent = '📁 ' + name;
+      overlay.remove();
+      setStatus('Session "' + name + '" ready — files will save here', 'ok');
+    } catch (err) {
+      if (err.name !== 'AbortError') setStatus('Folder error: ' + err.message, 'err');
+    }
+  });
+}
+
+async function saveBlob(blob, filename) {
+  if (!sessionDirHandle) {
+    setStatus('Choose a session folder first — click the session pill in the header.', 'err');
+    showSessionModal();
+    throw new Error('No session folder selected');
+  }
+  const fh = await sessionDirHandle.getFileHandle(filename, { create: true });
+  const writable = await fh.createWritable();
+  await writable.write(blob);
+  await writable.close();
+}
+
+// ── Keyboard shortcuts ──
+document.addEventListener('keydown', e => {
+  // Don't fire when typing in an input field
+  if (e.target.tagName === 'TEXTAREA') return;
+  // Don't fire on text inputs, but DO allow range sliders to be overridden for navigation
+  if (e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
+
+  if (e.ctrlKey || e.metaKey) {
+    if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); undoAdj(); }
+    if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) { e.preventDefault(); redoAdj(); }
+    return;
+  }
+
+  // Arrow key thumbnail navigation — takes priority over slider focus
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    e.preventDefault();
+    const total = originals.filter(Boolean).length;
+    if (total < 2) return;
+    const dir = e.key === 'ArrowRight' ? 1 : -1;
+    // Blur any focused slider so subsequent arrow presses keep navigating
+    if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+      document.activeElement.blur();
+    }
+    navigatePreview(dir);
+  }
+});
+(function() {
+  document.getElementById('bg-colour-panel').style.display = 'block';
+  document.getElementById('shadow-panel').style.display = 'block';
+  document.getElementById('crop-section').style.display = 'block';
+  document.getElementById('bg-colour-label').textContent = 'White background';
+  document.getElementById('crop-padding-row').style.display = 'none'; // crop off by default
+  shadowEnabled = false;
+  updateShadowDialReadout();
+  updateSaveButtonLabel();
+  showSessionModal();
+})();
+
+function updateRotationLabel() {
+  const btn = document.getElementById('rotation-label');
+  if (btn) btn.textContent = currentRotation === 0 ? '0°' : currentRotation + '°';
+}
+
+// ── Apply current image's settings to all other images ──
+function applySettingsToAll() {
+  if (!fileList[selectedIdx]) return;
+  const total = fileList.filter(Boolean).length;
+  if (total < 2) {
+    document.getElementById('apply-all-status').textContent = 'Only one image loaded.';
+    return;
+  }
+
+  // Check if any other image has non-default slider settings (not rotation/layout)
+  const hasCustom = fileList.some((f, i) => {
+    if (!f || i === selectedIdx) return false;
+    const s = imageSettings[i];
+    if (!s) return false;
+    return s.brightness !== 0 || s.contrast !== 0 || s.sharpness !== 0 || s.colour !== 0;
+  });
+
+  if (hasCustom) {
+    if (!confirm(`${total - 1} other image(s) have their own adjustments. Overwrite all with the current image's settings?`)) return;
+  }
+
+  // Save current slider state first
+  saveCurrentSettings();
+  const src = imageSettings[selectedIdx] || DEFAULT_SETTINGS();
+
+  // Copy only slider values — NOT rotation (per-image orientation), NOT pan/zoom/frame
+  const settingsToCopy = {
+    brightness: src.brightness, contrast: src.contrast,
+    sharpness: src.sharpness, colour: src.colour,
+    warmth: src.warmth, highlights: src.highlights, shadows: src.shadows,
+  };
+
+  // Also apply global processing settings: export scale, BG colour, crop toggle
+  // (these are already global so they apply to all saves automatically —
+  //  but we update them from the current UI state to make the intent clear)
+  const currentScale   = exportScale;
+  const currentBgCol   = bgColour;
+  const currentCrop    = cropToContentEnabled;
+  const currentPadding = parseInt(document.getElementById('crop-padding-range').value) || 20;
+
+  let count = 0;
+  for (let i = 0; i < fileList.length; i++) {
+    if (!fileList[i] || i === selectedIdx) continue;
+    // Preserve each image's own rotation and pan/zoom layout
+    imageSettings[i] = { ...(imageSettings[i] || DEFAULT_SETTINGS()), ...settingsToCopy };
+    updateThumbCustomDot(i);
+    count++;
+  }
+
+  // Global settings are already shared — just confirm they're still set correctly
+  exportScale = currentScale;
+  bgColour = currentBgCol;
+  cropToContentEnabled = currentCrop;
+  document.getElementById('crop-padding-range').value = currentPadding;
+  document.getElementById('crop-padding-val').textContent = currentPadding + ' px';
+
+  const parts = [];
+  if (settingsToCopy.brightness !== 0) parts.push('brightness');
+  if (settingsToCopy.contrast   !== 0) parts.push('contrast');
+  if (settingsToCopy.sharpness  !== 0) parts.push('sharpness');
+  if (settingsToCopy.colour     !== 0) parts.push('colour');
+  if (settingsToCopy.warmth     !== 0) parts.push('warmth');
+  if (settingsToCopy.highlights !== 0) parts.push('highlights');
+  if (settingsToCopy.shadows    !== 0) parts.push('shadows');
+  parts.push(`${Math.round(exportScale * 100)}% export`);
+  if (bgColour !== '#ffffff') parts.push(`bg: ${bgColour}`);
+  if (cropToContentEnabled) parts.push('crop to subject');
+
+  const msg = `Applied to ${count} image${count !== 1 ? 's' : ''} ✓`;
+  document.getElementById('apply-all-status').textContent = msg;
+  setStatus(`${msg} — ${parts.length ? parts.join(', ') : 'no slider changes'}`, 'ok');
+  setTimeout(() => {
+    const el = document.getElementById('apply-all-status');
+    if (el) el.textContent = '';
+  }, 3000);
+}
+
+// ── Apply current BG + shadow settings to all images ──
+async function applyBgShadowToAll() {
+  if (!fileList[selectedIdx]) return;
+  const total = fileList.filter(Boolean).length;
+  if (total < 2) {
+    document.getElementById('apply-bg-all-status').textContent = 'Only one image loaded.';
+    return;
+  }
+
+  // Snapshot everything we're about to broadcast
+  const snap = {
+    bgRemoveEnabled,
+    bgColour,
+    cropToContentEnabled,
+    cropPadding: parseInt(document.getElementById('crop-padding-range').value) || 20,
+    shadowEnabled,
+    shadowAngleDeg,
+    shadowDirection,
+    shadowStrength,
+    shadowSoftness,
+    shadowSpread,
+    shadowWidth,
+    shadowLength,
+    shadowDistance,
+  };
+
+  const count = total - 1;
+  if (!confirm(`Apply current BG removal, colour, crop and shadow settings to all ${count} other image${count !== 1 ? 's' : ''}?\n\nThis will run BG removal on any images that haven't been processed yet.`)) return;
+
+  // These are all global variables — setting them once affects all future saves.
+  bgRemoveEnabled       = snap.bgRemoveEnabled;
+  bgColour              = snap.bgColour;
+  cropToContentEnabled  = snap.cropToContentEnabled;
+  shadowEnabled         = snap.shadowEnabled;
+  shadowAngleDeg        = snap.shadowAngleDeg;
+  shadowDirection       = snap.shadowDirection;
+  shadowStrength        = snap.shadowStrength;
+  shadowSoftness        = snap.shadowSoftness;
+  shadowSpread          = snap.shadowSpread;
+  shadowWidth           = snap.shadowWidth;
+  shadowLength          = snap.shadowLength;
+  shadowDistance        = snap.shadowDistance;
+
+  // Sync crop padding DOM
+  document.getElementById('crop-padding-range').value = snap.cropPadding;
+  document.getElementById('crop-padding-val').textContent = snap.cropPadding + ' px';
+
+  // Build a human-readable summary
+  const parts = [];
+  parts.push(snap.bgRemoveEnabled ? 'BG removal ON' : 'BG removal OFF');
+  if (snap.bgRemoveEnabled) {
+    parts.push(`bg: ${snap.bgColour === 'none' ? 'transparent' : snap.bgColour}`);
+    if (snap.cropToContentEnabled) parts.push(`crop + ${snap.cropPadding}px pad`);
+    if (snap.shadowEnabled) {
+      parts.push(`shadow ${Math.round(snap.shadowAngleDeg)}°, str ${snap.shadowStrength}%, dist ${snap.shadowDistance}%`);
+    } else {
+      parts.push('no shadow');
+    }
+  }
+
+  // If BG removal is enabled, run previewBgAll() so every image gets its BG
+  // actually removed and added to bgPreviewSet — not just a global variable flip.
+  // Without this step, images that haven't been individually previewed save
+  // without BG removal applied even though the toggle says ON.
+  if (snap.bgRemoveEnabled) {
+    document.getElementById('apply-bg-all-status').textContent = 'Processing BG on all images…';
+    await previewBgAll();
+  }
+
+  // Store shadowEnabled into every image's per-image settings so individual
+  // images can later override it independently via toggleShadowOff().
+  for (let i = 0; i < fileList.length; i++) {
+    if (fileList[i] && imageSettings[i]) {
+      imageSettings[i].shadowEnabled = snap.shadowEnabled;
+    }
+  }
+
+  const msg = `Applied to ${total} image${total !== 1 ? 's' : ''} ✓`;
+  document.getElementById('apply-bg-all-status').textContent = msg;
+  setStatus(`${msg} — ${parts.join(', ')}`, 'ok');
+  setTimeout(() => {
+    const el = document.getElementById('apply-bg-all-status');
+    if (el) el.textContent = '';
+  }, 3000);
+}
+
+// ── Thumbnail custom-settings dot ──
+function isNonDefault(idx) {
+  const s = imageSettings[idx];
+  if (!s) return false;
+  if (s.brightness !== 0 || s.contrast !== 0 || s.sharpness !== 0 || s.colour !== 0 || s.warmth !== 0 || s.highlights !== 0 || s.shadows !== 0 || s.rotation !== 0) return true;
+  // Also flag if the image has been zoomed/panned away from its natural fit
+  if (s._imgW && s._canvasW) {
+    const naturalScale = Math.min(s._canvasW / (s._imgW || 1), s._canvasH / (s._imgH || 1));
+    if (Math.abs(naturalScale - 1) > 0.01) return true; // zoomed
+    const centreX = Math.round((s._canvasW - s._imgW) / 2);
+    const centreY = Math.round((s._canvasH - s._imgH) / 2);
+    if (Math.abs(s._imgX - centreX) > 2 || Math.abs(s._imgY - centreY) > 2) return true; // panned
+  }
+  return false;
+}
+
+function updateThumbCustomDot(idx) {
+  const dot = document.getElementById('custom-dot-' + idx);
+  if (!dot) return;
+  dot.style.display = isNonDefault(idx) ? '' : 'none';
+}
+
+function onStraighten(val) {
+  pushAdjUndo(selectedIdx);
+  currentStraighten = parseFloat(val);
+  const el = document.getElementById('straighten-val');
+  el.textContent = currentStraighten === 0 ? '0°' : (currentStraighten > 0 ? '+' : '') + currentStraighten + '°';
+  el.style.color = currentStraighten === 0 ? 'var(--muted2)' : 'var(--cool)';
+  if (imageSettings[selectedIdx]) imageSettings[selectedIdx].straighten = currentStraighten;
+  if (bgPreviewSet.has(selectedIdx) && bgRemovedCache[selectedIdx]) drawBgPreview(selectedIdx);
+  else render();
+}
+
+function resetStraighten() {
+  document.getElementById('straighten-range').value = 0;
+  onStraighten(0);
+}
+
+async function rotateImage(deg) {
+  saveCurrentSettings();
+  pushAdjUndo(selectedIdx);
+  currentRotation = ((currentRotation + deg) % 360 + 360) % 360;
+  if (imageSettings[selectedIdx]) imageSettings[selectedIdx].rotation = currentRotation;
+  updateRotationLabel();
+  updateThumbRotBadge(selectedIdx);
+  updateThumbCustomDot(selectedIdx);
+
+  // Reset layout so loadNaturalDims re-reads swapped dims for new orientation
+  naturalW = 0; naturalH = 0;
+  canvasW = 0; canvasH = 0;
+  imgX = 0; imgY = 0; imgW = 0; imgH = 0;
+
+  if (bgPreviewSet.has(selectedIdx)) {
+    await loadNaturalDims(originals[selectedIdx]);
+    initCompose();
+    redraw();
+  } else {
+    render();
+  }
+}
+
+async function resetAll() {
+  pushAdjUndo(selectedIdx);
+  SLIDERS.forEach(s => {
+    document.getElementById(s.range).value = 0;
+    const el = document.getElementById(s.val);
+    el.textContent = '0'; el.className = 'val-badge zero';
+  });
+  currentRotation = 0;
+  if (imageSettings[selectedIdx]) imageSettings[selectedIdx].rotation = 0;
+  currentStraighten = 0;
+  if (imageSettings[selectedIdx]) imageSettings[selectedIdx].straighten = 0;
+  document.getElementById('straighten-range').value = 0;
+  document.getElementById('straighten-val').textContent = '0°';
+  document.getElementById('straighten-val').style.color = 'var(--muted2)';
+  updateRotationLabel();
+  updateThumbRotBadge(selectedIdx);
+  updateThumbCustomDot(selectedIdx);
+  naturalW = 0; naturalH = 0; canvasW = 0; canvasH = 0;
+  saveCurrentSettings();
+  // Rotation and tone are both applied live at draw time.
+  // But dims must be reinitialised after zeroing naturalW/canvasW before redrawing.
+  if (bgPreviewSet.has(selectedIdx)) {
+    await loadNaturalDims(originals[selectedIdx]);
+    initCompose();
+    redraw();
+  } else {
+    render();
+  }
+}
+
+// ── Spinner — CSS animation with visibilitychange restart ──
+(function() {
+  function restartAnim() {
+    const el = document.getElementById('bg-spinner-svg');
+    if (!el) return;
+    el.style.animation = 'none';
+    void el.offsetWidth; // force reflow
+    el.style.animation = '';
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      const overlay = document.getElementById('bg-overlay');
+      if (overlay && overlay.classList.contains('show')) restartAnim();
+    }
+  });
+
+  window._spinnerStart = function() {};
+  window._spinnerStop  = function() {};
+})();
+
+
+const PRESET_KEY = 'clearCut_presets_v1';
+
+function getPresets() {
+  try { return JSON.parse(localStorage.getItem(PRESET_KEY)) || []; }
+  catch { return []; }
+}
+
+function savePresets(presets) {
+  localStorage.setItem(PRESET_KEY, JSON.stringify(presets));
+}
+
+function capturePresetData() {
+  return {
+    brightness: parseFloat(document.getElementById('brightness-range').value),
+    contrast:   parseFloat(document.getElementById('contrast-range').value),
+    sharpness:  parseFloat(document.getElementById('sharpness-range').value),
+    colour:     parseFloat(document.getElementById('colour-range').value),
+    warmth:     parseFloat(document.getElementById('warmth-range').value),
+    highlights: parseFloat(document.getElementById('highlights-range').value),
+    shadows:    parseFloat(document.getElementById('shadows-range').value),
+    shadowEnabled,
+    shadowStrength,
+    shadowSoftness,
+    shadowSpread,
+    shadowWidth,
+    shadowDistance,
+    shadowAngleDeg,
+  };
+}
+
+function applyPresetData(d) {
+  const sliderMap = {
+    brightness: 'brightness', contrast: 'contrast', sharpness: 'sharpness',
+    colour: 'colour', warmth: 'warmth', highlights: 'highlights', shadows: 'shadows'
+  };
+  for (const [key, id] of Object.entries(sliderMap)) {
+    const range = document.getElementById(id + '-range');
+    const val   = document.getElementById(id + '-val');
+    if (range) { range.value = d[key]; range.dispatchEvent(new Event('input')); }
+    if (val)   { val.textContent = (d[key] >= 0 ? '+' : '') + d[key]; val.className = 'val-badge' + (d[key] === 0 ? ' zero' : ''); }
+  }
+  // Shadow - set state directly, then sync UI
+  shadowEnabled   = d.shadowEnabled;
+  shadowDirection = shadowEnabled ? 'angle' : 'none';
+  updateShadowDialReadout();
+  setTimeout(() => { drawShadowDial(); }, 0);  shadowStrength  = d.shadowStrength;
+  shadowSoftness  = d.shadowSoftness;
+  shadowSpread    = d.shadowSpread;
+  shadowWidth     = d.shadowWidth;
+  shadowDistance  = d.shadowDistance;
+  shadowAngleDeg  = d.shadowAngleDeg ?? shadowAngleDeg;
+  document.getElementById('shadow-strength-range').value  = shadowStrength;
+  document.getElementById('shadow-softness-range').value  = shadowSoftness;
+  document.getElementById('shadow-spread-range').value    = shadowSpread;
+  document.getElementById('shadow-width-range').value     = shadowWidth;
+  document.getElementById('shadow-distance-range').value  = shadowDistance;
+  document.getElementById('shadow-strength-val').textContent = shadowStrength + '%';
+  document.getElementById('shadow-softness-val').textContent = shadowSoftness + '%';
+  document.getElementById('shadow-spread-val').textContent   = shadowSpread   + '%';
+  document.getElementById('shadow-width-val').textContent    = shadowWidth    + '%';
+  document.getElementById('shadow-distance-val').textContent = shadowDistance + '%';
+  saveCurrentSettings();
+  redraw();
+}
+
+function saveNewPreset() {
+  const name = prompt('Name this preset:');
+  if (!name || !name.trim()) return;
+  const presets = getPresets();
+  presets.push({ name: name.trim(), data: capturePresetData() });
+  savePresets(presets);
+  renderPresetSlots();
+  showPresetStatus('Saved: ' + name.trim());
+}
+
+function deletePreset(idx) {
+  const presets = getPresets();
+  presets.splice(idx, 1);
+  savePresets(presets);
+  renderPresetSlots();
+}
+
+function showPresetStatus(msg) {
+  const el = document.getElementById('preset-status');
+  el.textContent = msg;
+  setTimeout(() => { if (el) el.textContent = ''; }, 2500);
+}
+
+function renderPresetSlots() {
+  const container = document.getElementById('preset-slots');
+  const presets   = getPresets();
+  if (!presets.length) {
+    container.innerHTML = '<div style="font-family:var(--mono);font-size:9px;color:var(--muted);text-align:center;padding:8px 0;">No presets saved yet</div>';
+    return;
+  }
+  container.innerHTML = presets.map((p, i) => `
+    <div style="display:flex;gap:5px;align-items:center;">
+      <button class="btn btn-secondary" onclick="applyPresetData(getPresets()[${i}].data);showPresetStatus('Applied: ${p.name.replace(/'/g,"\\'")}');"
+        style="flex:1;font-size:10px;padding:6px 8px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+        title="Apply: ${p.name}">${p.name}</button>
+      <button onclick="deletePreset(${i})" title="Delete preset"
+        style="background:none;border:1px solid var(--border2);border-radius:4px;color:var(--muted);font-size:11px;padding:4px 7px;cursor:pointer;flex-shrink:0;line-height:1;">×</button>
+    </div>`).join('');
+}
+
+// Init presets on load
+renderPresetSlots();
+
+// ── Preview navigation ──────────────────────────────────────────
+function navigatePreview(dir) {
+  // Navigate in visual DOM order of the filmstrip, not raw array index arithmetic.
+  const thumbs = Array.from(document.querySelectorAll('#thumb-strip-film .thumb'));
+  if (thumbs.length < 2) return;
+  const currentPos = thumbs.findIndex(t => parseInt(t.dataset.idx) === selectedIdx);
+  if (currentPos === -1) return;
+  const nextPos = ((currentPos + dir) + thumbs.length) % thumbs.length;
+  const nextThumb = thumbs[nextPos];
+  const nextIdx = parseInt(nextThumb.dataset.idx);
+  selectImage(nextIdx);
+  nextThumb.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+}
+
+function updateNavZones() {
+  const show = originals.filter(Boolean).length > 1;
+  const prev = document.getElementById('prev-zone');
+  const next = document.getElementById('next-zone');
+  if (prev) prev.style.display = show ? 'flex' : 'none';
+  if (next) next.style.display = show ? 'flex' : 'none';
+}
+
+</script>
+</body>
+</html>
