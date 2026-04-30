@@ -46,6 +46,8 @@ Click or drag photos directly onto the drop zone in the preview area. Supports J
 
 Once loaded, images appear in the **filmstrip** at the bottom of the preview. Click any thumbnail to switch to it. Hover a thumbnail to reveal the **✕** remove button.
 
+![Filmstrip](filmstrip.png)
+
 > **Tip:** When you add new images, any slider adjustments you've already made are automatically inherited by the new images.
 
 Here's an example of a finished edit — background removed, shadow added, and adjustments dialled in:
@@ -174,4 +176,3 @@ Use your mouse to navigate and crop within the preview area.
 - **Save all photos** — batch exports every image in the filmstrip; a progress bar tracks the queue
 
 Exports are saved directly to your session folder. If background removal was applied, images export as PNG to preserve transparency (unless a solid background colour was chosen).
-
