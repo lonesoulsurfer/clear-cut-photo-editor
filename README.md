@@ -4,6 +4,8 @@ A free browser-based photo editor with AI background removal, colour adjustments
 
 **[Click here to use the editor](https://lonesoulsurfer.github.io/clear-cut-photo-editor/)**
 
+Step-by-step guide on Instructables: [The Ultimate Photo Editing Tool - Made for Instructables](https://www.instructables.com/The-Ultimate-Photo-Editing-Tool-Made-for-Instrucab/)
+
 This photo editor was built to make batch changes on images simple and easy. Primarily — I made it so I could batch process images for Instructables builds. However, it's a great tool to use for individual images as well.
 
 The 2 highlights in this editor are the background removal and adding shadows to images. Once the background has been removed, you can pick the colour you want or have it transparent.
