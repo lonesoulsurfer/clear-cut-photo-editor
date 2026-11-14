@@ -258,3 +258,17 @@ The right panel **Canvas** and **Export size** controls work the same as in the 
 The **Start over (keep images)** button at the bottom of the left panel resets the entire collage — all slot assignments, adjustments, background removals and shadows are cleared. Your loaded images stay in the filmstrip ready to re-assign.
 
 To reset a single slot only, select it and click **Reset**.
+
+## Support
+
+Do you like this project? You can support my work on [GitHub Sponsors](https://github.com/sponsors/lonesoulsurfer).
+
+## Licence
+
+This project uses the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0). Copyright (c) 2026 Marcus (lonesoulsurfer).
+
+- You can use the editor free of charge, for any purpose.
+- You can change it and share it.
+- If you share a changed version, or run a changed version on a website, you must publish its source code under the AGPL-3.0.
+
+The editor uses [@imgly/background-removal](https://github.com/imgly/background-removal-js) by IMG.LY for the AI background removal. That library also uses the AGPL-3.0. The photos that you edit stay on your computer. The editor does not send them to a server.
